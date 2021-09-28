@@ -17,14 +17,9 @@
 
 package org.apache.shenyu.plugin.api.result;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-
 /**
  * The enum shenyu result enum.
  */
-@Getter
-@RequiredArgsConstructor
 public enum ShenyuResultEnum {
 
     /**
@@ -174,6 +169,31 @@ public enum ShenyuResultEnum {
     SECRET_KEY_MUST_BE_CONFIGURED(-112, "SecretKey must be configured"),
 
     /**
+     * Response error.
+     */
+    RESPONSE_ERROR(-113, "Response error, please check your configuration!"),
+
+    /**
+     * Cryptor request field error.
+     */
+    CRYPTOR_REQUEST_ERROR_CONFIGURATION(-114, "Please check Cryptor request plugin's "),
+
+    /**
+     * Cryptor response field error.
+     */
+    CRYPTOR_RESPONSE_ERROR_CONFIGURATION(-116, "Please check Cryptor response plugin's "),
+
+    /**
+     * Decryption error.
+     */
+    DECRYPTION_ERROR(-117, "Decryption failed, please check the parameters or key, or the data length is too long"),
+
+    /**
+     * Encryption error.
+     */
+    ENCRYPTION_ERROR(-118, "Encryption failed, please check the parameters or key, or the data length is too long"),
+
+    /**
      * Request Header Fields Too Large.
      */
     REQUEST_HEADER_TOO_LARGE(431, "Request Header Fields Too Large"),
@@ -183,7 +203,34 @@ public enum ShenyuResultEnum {
      */
     REQUEST_ENTITY_TOO_LARGE(413, "Request Entity Too Large");
 
+    /**
+     * the code.
+     */
     private final int code;
 
+    /**
+     * the msg.
+     */
     private final String msg;
+
+    ShenyuResultEnum(final int code, final String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+
+    /**
+     * get code.
+     * @return code
+     */
+    public int getCode() {
+        return code;
+    }
+
+    /**
+     * get msg.
+     * @return msg
+     */
+    public String getMsg() {
+        return msg;
+    }
 }

@@ -17,10 +17,10 @@
 
 package org.apache.shenyu.plugin.sofa.handler;
 
-import org.apache.shenyu.common.config.SofaRegisterConfig;
+import org.apache.shenyu.common.dto.convert.plugin.SofaRegisterConfig;
 import org.apache.shenyu.common.dto.MetaData;
 import org.apache.shenyu.common.dto.PluginData;
-import org.apache.shenyu.plugin.base.utils.Singleton;
+import org.apache.shenyu.common.utils.Singleton;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -53,14 +53,14 @@ public final class SofaPluginDataHandlerTest {
 
     @Test
     public void testPluginEnable() {
-        PluginData pluginData = new PluginData("", "", registryConfig, 1, true);
+        PluginData pluginData = new PluginData("", "", registryConfig, "1", true);
         sofaPluginDataHandler.handlerPlugin(pluginData);
         Assert.assertEquals(Singleton.INST.get(SofaRegisterConfig.class).getRegister(), "127.0.0.1:2181");
     }
 
     @Test
     public void testPluginDisable() {
-        PluginData pluginData = new PluginData("", "", registryConfig, 1, false);
+        PluginData pluginData = new PluginData("", "", registryConfig, "1", false);
         sofaPluginDataHandler.handlerPlugin(pluginData);
         Assert.assertNull(Singleton.INST.get(SofaRegisterConfig.class));
     }

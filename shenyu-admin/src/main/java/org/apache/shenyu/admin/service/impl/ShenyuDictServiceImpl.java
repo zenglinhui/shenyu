@@ -18,6 +18,7 @@
 package org.apache.shenyu.admin.service.impl;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.shenyu.admin.aspect.annotation.Pageable;
 import org.apache.shenyu.admin.mapper.ShenyuDictMapper;
 import org.apache.shenyu.admin.model.dto.ShenyuDictDTO;
 import org.apache.shenyu.admin.model.entity.ShenyuDictDO;
@@ -26,7 +27,6 @@ import org.apache.shenyu.admin.model.page.PageResultUtils;
 import org.apache.shenyu.admin.model.query.ShenyuDictQuery;
 import org.apache.shenyu.admin.model.vo.ShenyuDictVO;
 import org.apache.shenyu.admin.service.ShenyuDictService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,22 +34,21 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * ShenyuDictServiceImpl.
+ * Implementation of the {@link org.apache.shenyu.admin.service.ShenyuDictService}.
  */
-@Service("shenyuDictService")
+@Service
 public class ShenyuDictServiceImpl implements ShenyuDictService {
 
     private final ShenyuDictMapper shenyuDictMapper;
 
-    @Autowired(required = false)
     public ShenyuDictServiceImpl(final ShenyuDictMapper shenyuDictMapper) {
         this.shenyuDictMapper = shenyuDictMapper;
     }
 
     @Override
+    @Pageable
     public CommonPager<ShenyuDictVO> listByPage(final ShenyuDictQuery shenyuDictQuery) {
         return PageResultUtils.result(shenyuDictQuery.getPageParameter(),
-            () -> shenyuDictMapper.countByQuery(shenyuDictQuery),
             () -> shenyuDictMapper.selectByQuery(shenyuDictQuery)
                         .stream()
                         .map(ShenyuDictVO::buildShenyuDictVO)

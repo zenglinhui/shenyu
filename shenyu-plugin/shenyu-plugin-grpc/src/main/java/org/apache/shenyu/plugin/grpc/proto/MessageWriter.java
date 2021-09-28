@@ -17,55 +17,50 @@
 
 package org.apache.shenyu.plugin.grpc.proto;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.stub.StreamObserver;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.shenyu.protocol.grpc.message.JsonMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * MessageWriter.
  */
-@Slf4j
 public final class MessageWriter<T extends Message> implements StreamObserver<T> {
 
-    private final JsonFormat.Printer printer;
+    private static final Logger LOG = LoggerFactory.getLogger(MessageWriter.class);
 
-    private final ShenyuGrpcResponse results;
+    private final ShenyuGrpcResponse grpcResponse;
 
-    private MessageWriter(final JsonFormat.Printer printer, final ShenyuGrpcResponse results) {
-        this.printer = printer;
-        this.results = results;
+    private MessageWriter(final ShenyuGrpcResponse grpcResponse) {
+        this.grpcResponse = grpcResponse;
     }
 
     /**
      * New instance.
      *
-     * @param registry registry
      * @param results  results
      * @param <T>      t
      * @return message message
      */
-    public static <T extends Message> MessageWriter<T> newInstance(final JsonFormat.TypeRegistry registry, final ShenyuGrpcResponse results) {
-        return new MessageWriter<>(JsonFormat.printer().usingTypeRegistry(registry), results);
+    public static <T extends Message> MessageWriter<T> newInstance(final ShenyuGrpcResponse results) {
+        return new MessageWriter<>(results);
     }
 
     @Override
     public void onNext(final T value) {
-        try {
-            results.setResult(printer.print(value));
-        } catch (InvalidProtocolBufferException e) {
-            log.error("Skipping invalid response message", e);
-        }
+        String respData = JsonMessage.getDataFromDynamicMessage((DynamicMessage) value);
+        grpcResponse.getResults().add(respData);
     }
 
     @Override
     public void onError(final Throwable t) {
-        log.error("Messages write occur errors", t);
+        LOG.error("Messages write occur errors", t);
     }
 
     @Override
     public void onCompleted() {
-        log.info("Messages write complete");
+        LOG.info("Messages write complete");
     }
 }

@@ -19,14 +19,12 @@ package org.apache.shenyu.common.utils;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import lombok.SneakyThrows;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test cases for UpstreamCheckUtils.
@@ -41,17 +39,6 @@ public final class UpstreamCheckUtilsTest {
     }
 
     @Test
-    public void testNotIp() {
-        assertFalse(UpstreamCheckUtils.checkUrl("test"));
-    }
-
-    @Test
-    public void testPingHostname() {
-        assertTrue(UpstreamCheckUtils.checkUrl("localhost"));
-    }
-
-    @Test
-    @SneakyThrows
     public void testSocketConnect() {
         Runnable runnable = () -> {
             ServerSocket serverSocket;
@@ -73,6 +60,6 @@ public final class UpstreamCheckUtilsTest {
         assertTrue(UpstreamCheckUtils.checkUrl("127.0.0.1:" + port));
         assertFalse(UpstreamCheckUtils.checkUrl("http://127.0.0.1:" + (port == 0 ? port + 1 : port - 1)));
         assertTrue(UpstreamCheckUtils.checkUrl("http://127.0.0.1:" + port));
-        assertTrue(UpstreamCheckUtils.checkUrl("https://dromara.org"));
+        assertTrue(UpstreamCheckUtils.checkUrl("https://shenyu.apache.org"));
     }
 }

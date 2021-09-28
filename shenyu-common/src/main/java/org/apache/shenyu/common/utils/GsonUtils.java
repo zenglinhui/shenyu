@@ -31,16 +31,21 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
-import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.shenyu.common.constant.Constants;
+import org.apache.shenyu.common.exception.ShenyuException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.util.LinkedMultiValueMap;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.URLDecoder;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,11 +59,17 @@ import java.util.concurrent.ConcurrentSkipListMap;
  */
 public class GsonUtils {
 
+    /**
+     * logger.
+     */
+    private static final Logger LOG = LoggerFactory.getLogger(GsonUtils.class);
+
     private static final GsonUtils INSTANCE = new GsonUtils();
 
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(String.class, new StringTypeAdapter())
             .registerTypeHierarchyAdapter(Pair.class, new PairTypeAdapter())
+            .registerTypeHierarchyAdapter(Duration.class, new DurationTypeAdapter())
             .create();
 
     private static final Gson GSON_MAP = new GsonBuilder().serializeNulls().registerTypeHierarchyAdapter(new TypeToken<Map<String, Object>>() {
@@ -67,6 +78,20 @@ public class GsonUtils {
     private static final String DOT = ".";
 
     private static final String E = "e";
+
+    private static final String LEFT = "left";
+
+    private static final String RIGHT = "right";
+
+    private static final String LEFT_ANGLE_BRACKETS = "{";
+
+    private static final String RIGHT_ANGLE_BRACKETS = "}";
+
+    private static final String EMPTY = "";
+
+    private static final String EQUAL_SIGN = "=";
+
+    private static final String AND = "&";
 
     /**
      * Gets gson instance.
@@ -140,22 +165,22 @@ public class GsonUtils {
      */
     public String toGetParam(final String json) {
         if (StringUtils.isBlank(json)) {
-            return "";
+            return EMPTY;
         }
         final Map<String, String> map = toStringMap(json);
         StringBuilder stringBuilder = new StringBuilder();
         map.forEach((k, v) -> {
             try {
                 stringBuilder.append(k)
-                        .append("=")
+                        .append(EQUAL_SIGN)
                         .append(URLDecoder.decode(v, Constants.DECODE))
-                        .append("&");
+                        .append(AND);
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
             }
         });
         final String r = stringBuilder.toString();
-        return r.substring(0, r.lastIndexOf("&"));
+        return r.substring(0, r.lastIndexOf(AND));
 
     }
 
@@ -193,7 +218,7 @@ public class GsonUtils {
     }
 
     /**
-     *  To object map map.
+     * To object map map.
      *
      * @param json  the json
      * @param clazz the class
@@ -205,7 +230,7 @@ public class GsonUtils {
     }
 
     /**
-     *  To object map list.
+     * To object map list.
      *
      * @param json  the json
      * @param clazz the class
@@ -228,6 +253,17 @@ public class GsonUtils {
     }
 
     /**
+     * To linked multiValue map.
+     *
+     * @param json the json
+     * @return the linked multiValue map
+     */
+    public LinkedMultiValueMap<String, String> toLinkedMultiValueMap(final String json) {
+        return GSON.fromJson(json, new TypeToken<LinkedMultiValueMap<String, String>>() {
+        }.getType());
+    }
+
+    /**
      * Convert to map map.
      *
      * @param json the json
@@ -246,7 +282,7 @@ public class GsonUtils {
             Object value = entry.getValue();
             if (value instanceof String) {
                 String valueStr = ((String) value).trim();
-                if (valueStr.startsWith("{") && valueStr.endsWith("}")) {
+                if (valueStr.startsWith(LEFT_ANGLE_BRACKETS) && valueStr.endsWith(RIGHT_ANGLE_BRACKETS)) {
                     Map<String, Object> mv = convertToMap(value.toString());
                     map.put(key, mv);
                 }
@@ -277,7 +313,7 @@ public class GsonUtils {
                 continue;
             }
             String objStr = jsonElement.getAsString();
-            if (objStr.startsWith("{") && objStr.endsWith("}")) {
+            if (objStr.startsWith(LEFT_ANGLE_BRACKETS) && objStr.endsWith(RIGHT_ANGLE_BRACKETS)) {
                 list.add(convertToMap(jsonElement.toString()));
             } else {
                 list.add(objStr);
@@ -289,7 +325,6 @@ public class GsonUtils {
 
     private static class MapDeserializer<T, U> implements JsonDeserializer<Map<T, U>> {
         @SuppressWarnings("unchecked")
-        @SneakyThrows
         @Override
         public Map<T, U> deserialize(final JsonElement json, final Type type, final JsonDeserializationContext context) {
             if (!json.isJsonObject()) {
@@ -300,13 +335,22 @@ public class GsonUtils {
             Set<Map.Entry<String, JsonElement>> jsonEntrySet = jsonObject.entrySet();
 
             String className = ((ParameterizedType) type).getRawType().getTypeName();
-            Class<Map<?, ?>> mapClass = (Class<Map<?, ?>>) Class.forName(className);
+            Class<Map<?, ?>> mapClass = null;
+            try {
+                mapClass = (Class<Map<?, ?>>) Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                LOG.error("failed to get class", e);
+            }
 
-            Map<T, U> resultMap;
+            Map<T, U> resultMap = null;
             if (mapClass.isInterface()) {
                 resultMap = new LinkedHashMap<>();
             } else {
-                resultMap = (Map<T, U>) mapClass.getConstructor().newInstance();
+                try {
+                    resultMap = (Map<T, U>) mapClass.getConstructor().newInstance();
+                } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+                    LOG.error("failed to get constructor", e);
+                }
             }
 
             for (Map.Entry<String, JsonElement> entry : jsonEntrySet) {
@@ -339,7 +383,7 @@ public class GsonUtils {
             if (primitive.isNumber()) {
                 String numStr = primitive.getAsString();
                 if (numStr.contains(DOT) || numStr.contains(E)
-                        || numStr.contains("E")) {
+                        || numStr.contains(E.toUpperCase())) {
                     return Double.class;
                 }
                 return Long.class;
@@ -352,24 +396,30 @@ public class GsonUtils {
     }
 
     private static class StringTypeAdapter extends TypeAdapter<String> {
-        @SneakyThrows
         @Override
         public void write(final JsonWriter out, final String value) {
-            if (StringUtils.isBlank(value)) {
-                out.nullValue();
-                return;
+            try {
+                if (StringUtils.isBlank(value)) {
+                    out.nullValue();
+                    return;
+                }
+                out.value(value);
+            } catch (IOException e) {
+                LOG.error("failed to write", e);
             }
-            out.value(value);
         }
 
-        @SneakyThrows
         @Override
         public String read(final JsonReader reader) {
-            if (reader.peek() == JsonToken.NULL) {
-                reader.nextNull();
-                return "";
+            try {
+                if (reader.peek() == JsonToken.NULL) {
+                    reader.nextNull();
+                    return EMPTY;
+                }
+                return reader.nextString();
+            } catch (IOException e) {
+                throw new ShenyuException(e);
             }
-            return reader.nextString();
         }
     }
 
@@ -378,8 +428,8 @@ public class GsonUtils {
         @Override
         public void write(final JsonWriter out, final Pair<String, String> value) throws IOException {
             out.beginObject();
-            out.name("left").value(value.getLeft());
-            out.name("right").value(value.getRight());
+            out.name(LEFT).value(value.getLeft());
+            out.name(RIGHT).value(value.getRight());
             out.endObject();
         }
 
@@ -392,10 +442,10 @@ public class GsonUtils {
 
             while (in.hasNext()) {
                 switch (in.nextName()) {
-                    case "left":
+                    case LEFT:
                         left = in.nextString();
                         break;
-                    case "right":
+                    case RIGHT:
                         right = in.nextString();
                         break;
                     default:
@@ -406,6 +456,34 @@ public class GsonUtils {
             in.endObject();
 
             return Pair.of(left, right);
+        }
+    }
+
+    private static class DurationTypeAdapter extends TypeAdapter<Duration> {
+        @Override
+        public void write(final JsonWriter out, final Duration value) {
+            try {
+                if (value == null) {
+                    out.nullValue();
+                    return;
+                }
+                out.value(value.toString());
+            } catch (IOException e) {
+                LOG.error("failed to write", e);
+            }
+        }
+
+        @Override
+        public Duration read(final JsonReader reader) {
+            try {
+                if (reader.peek() == JsonToken.NULL) {
+                    reader.nextNull();
+                    return null;
+                }
+                return Duration.parse(reader.nextString());
+            } catch (IOException e) {
+                throw new ShenyuException(e);
+            }
         }
     }
 }

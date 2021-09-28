@@ -18,11 +18,10 @@
 package org.apache.shenyu.plugin.sentinel;
 
 import com.alibaba.csp.sentinel.adapter.reactor.SentinelReactorTransformer;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.shenyu.common.constant.Constants;
 import org.apache.shenyu.common.dto.RuleData;
 import org.apache.shenyu.common.dto.SelectorData;
-import org.apache.shenyu.common.dto.convert.SentinelHandle;
+import org.apache.shenyu.common.dto.convert.rule.SentinelHandle;
 import org.apache.shenyu.common.enums.PluginEnum;
 import org.apache.shenyu.common.utils.GsonUtils;
 import org.apache.shenyu.plugin.api.ShenyuPluginChain;
@@ -39,7 +38,6 @@ import reactor.core.publisher.Mono;
 /**
  * Sentinel Plugin.
  */
-@Slf4j
 public class SentinelPlugin extends AbstractShenyuPlugin {
 
     private final FallbackHandler fallbackHandler;

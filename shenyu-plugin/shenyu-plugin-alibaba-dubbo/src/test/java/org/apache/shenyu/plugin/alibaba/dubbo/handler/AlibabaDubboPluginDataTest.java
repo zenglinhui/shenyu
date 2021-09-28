@@ -17,11 +17,11 @@
 
 package org.apache.shenyu.plugin.alibaba.dubbo.handler;
 
-import org.apache.shenyu.common.config.DubboRegisterConfig;
+import org.apache.shenyu.common.dto.convert.plugin.DubboRegisterConfig;
 import org.apache.shenyu.common.dto.MetaData;
 import org.apache.shenyu.common.dto.PluginData;
 import org.apache.shenyu.common.enums.PluginEnum;
-import org.apache.shenyu.plugin.base.utils.Singleton;
+import org.apache.shenyu.common.utils.Singleton;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
@@ -36,7 +36,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 @RunWith(MockitoJUnitRunner.class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public final class AlibabaDubboPluginDataTest {
-    
+
     private AlibabaDubboPluginDataHandler alibabaDubboPluginDataHandler;
 
     private final String registryConfig = "{\"protocol\":\"zookeeper\",\"register\":\"127.0.0.1:2181\"}";
@@ -54,14 +54,14 @@ public final class AlibabaDubboPluginDataTest {
 
     @Test
     public void testPluginEnable() {
-        PluginData pluginData = new PluginData("", "", registryConfig, 1, true);
+        PluginData pluginData = new PluginData("", "", registryConfig, "1", true);
         alibabaDubboPluginDataHandler.handlerPlugin(pluginData);
         Assert.assertEquals(Singleton.INST.get(DubboRegisterConfig.class).getRegister(), "127.0.0.1:2181");
     }
 
     @Test
     public void testPluginDisable() {
-        PluginData pluginData = new PluginData("", "", registryConfig, 1, false);
+        PluginData pluginData = new PluginData("", "", registryConfig, "1", false);
         alibabaDubboPluginDataHandler.handlerPlugin(pluginData);
         Assert.assertNull(Singleton.INST.get(DubboRegisterConfig.class));
     }

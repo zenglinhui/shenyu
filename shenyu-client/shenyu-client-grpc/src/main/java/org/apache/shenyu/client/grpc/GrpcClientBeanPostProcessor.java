@@ -18,10 +18,10 @@
 package org.apache.shenyu.client.grpc;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.BindableService;
+import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.shenyu.client.core.disruptor.ShenyuClientRegisterEventPublisher;
 import org.apache.shenyu.client.grpc.common.annotation.ShenyuGrpcClient;
 import org.apache.shenyu.client.grpc.common.dto.GrpcExt;
@@ -31,6 +31,8 @@ import org.apache.shenyu.common.utils.IpUtils;
 import org.apache.shenyu.register.client.api.ShenyuClientRegisterRepository;
 import org.apache.shenyu.register.common.config.ShenyuRegisterCenterConfig;
 import org.apache.shenyu.register.common.dto.MetaDataRegisterDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.lang.NonNull;
@@ -44,30 +46,28 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
  * The type Shenyu grpc client bean post processor.
  */
-@Slf4j
 public class GrpcClientBeanPostProcessor implements BeanPostProcessor {
-    
+
+    private static final Logger LOG = LoggerFactory.getLogger(GrpcClientBeanPostProcessor.class);
+
     private ShenyuClientRegisterEventPublisher publisher = ShenyuClientRegisterEventPublisher.getInstance();
-    
+
     private final ExecutorService executorService;
-    
+
     private final String contextPath;
-    
+
     private final String ipAndPort;
 
     private final String host;
 
     private final int port;
 
-    @Getter
     private List<ServerServiceDefinition> serviceDefinitions = Lists.newArrayList();
 
     /**
@@ -88,7 +88,7 @@ public class GrpcClientBeanPostProcessor implements BeanPostProcessor {
         this.contextPath = contextPath;
         this.host = props.getProperty("host");
         this.port = Integer.parseInt(port);
-        executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        executorService = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("shenyu-grpc-client-thread-pool-%d").build());
         publisher.start(shenyuClientRegisterRepository);
     }
 
@@ -106,7 +106,7 @@ public class GrpcClientBeanPostProcessor implements BeanPostProcessor {
         try {
             clazz = serviceBean.getClass();
         } catch (Exception e) {
-            log.error("failed to get grpc target class");
+            LOG.error("failed to get grpc target class");
             return;
         }
         Class<?> parent = clazz.getSuperclass();
@@ -118,11 +118,11 @@ public class GrpcClientBeanPostProcessor implements BeanPostProcessor {
             field.setAccessible(true);
             packageName = field.get(null).toString();
         } catch (Exception e) {
-            log.error(String.format("SERVICE_NAME field not found: %s", classes));
+            LOG.error(String.format("SERVICE_NAME field not found: %s", classes));
             return;
         }
         if (StringUtils.isEmpty(packageName)) {
-            log.error(String.format("grpc SERVICE_NAME can not found: %s", classes));
+            LOG.error(String.format("grpc SERVICE_NAME can not found: %s", classes));
             return;
         }
         final Method[] methods = ReflectionUtils.getUniqueDeclaredMethods(clazz);
@@ -137,14 +137,15 @@ public class GrpcClientBeanPostProcessor implements BeanPostProcessor {
     private MetaDataRegisterDTO buildMetaDataDTO(final String packageName, final ShenyuGrpcClient shenyuGrpcClient, final Method method) {
         String path = this.contextPath + shenyuGrpcClient.path();
         String desc = shenyuGrpcClient.desc();
-        String configHost = this.host;
-        String host = org.apache.commons.lang3.StringUtils.isBlank(configHost) ? IpUtils.getHost() : configHost;
+        String host = IpUtils.isCompleteHost(this.host) ? this.host : IpUtils.getHost(this.host);
         String configRuleName = shenyuGrpcClient.ruleName();
         String ruleName = ("".equals(configRuleName)) ? path : configRuleName;
         String methodName = method.getName();
         Class<?>[] parameterTypesClazz = method.getParameterTypes();
         String parameterTypes = Arrays.stream(parameterTypesClazz).map(Class::getName)
                 .collect(Collectors.joining(","));
+        MethodDescriptor.MethodType methodType = JsonServerServiceInterceptor.getMethodTypeMap().get(packageName + "/" + methodName);
+
         return MetaDataRegisterDTO.builder()
                 .appName(ipAndPort)
                 .serviceName(packageName)
@@ -157,13 +158,17 @@ public class GrpcClientBeanPostProcessor implements BeanPostProcessor {
                 .pathDesc(desc)
                 .parameterTypes(parameterTypes)
                 .rpcType("grpc")
-                .rpcExt(buildRpcExt(shenyuGrpcClient))
+                .rpcExt(buildRpcExt(shenyuGrpcClient, methodType))
                 .enabled(shenyuGrpcClient.enabled())
                 .build();
     }
 
-    private String buildRpcExt(final ShenyuGrpcClient shenyuGrpcClient) {
-        GrpcExt build = GrpcExt.builder().timeout(shenyuGrpcClient.timeout()).build();
+    private String buildRpcExt(final ShenyuGrpcClient shenyuGrpcClient,
+                               final MethodDescriptor.MethodType methodType) {
+        GrpcExt build = GrpcExt.builder()
+                .timeout(shenyuGrpcClient.timeout())
+                .methodType(methodType)
+                .build();
         return GsonUtils.getInstance().toJson(build);
     }
 
@@ -176,7 +181,16 @@ public class GrpcClientBeanPostProcessor implements BeanPostProcessor {
             serviceDefinitions.add(serviceDefinition);
             serviceDefinitions.add(jsonDefinition);
         } catch (Exception e) {
-            log.error("export json generic service is fail", e);
+            LOG.error("export json generic service is fail", e);
         }
+    }
+
+    /**
+     * get serviceDefinitions.
+     *
+     * @return serviceDefinitions
+     */
+    public List<ServerServiceDefinition> getServiceDefinitions() {
+        return serviceDefinitions;
     }
 }

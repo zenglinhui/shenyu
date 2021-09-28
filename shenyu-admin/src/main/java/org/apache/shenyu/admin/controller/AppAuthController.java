@@ -18,8 +18,6 @@
 package org.apache.shenyu.admin.controller;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.shenyu.admin.service.AppAuthService;
-import org.apache.shenyu.admin.utils.ShenyuResultMessage;
 import org.apache.shenyu.admin.model.dto.AppAuthDTO;
 import org.apache.shenyu.admin.model.dto.AuthApplyDTO;
 import org.apache.shenyu.admin.model.dto.AuthPathWarpDTO;
@@ -29,7 +27,9 @@ import org.apache.shenyu.admin.model.page.PageParameter;
 import org.apache.shenyu.admin.model.query.AppAuthQuery;
 import org.apache.shenyu.admin.model.result.ShenyuAdminResult;
 import org.apache.shenyu.admin.model.vo.AppAuthVO;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.shenyu.admin.service.AppAuthService;
+import org.apache.shenyu.admin.utils.ShenyuResultMessage;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,23 +37,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.validation.Valid;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotEmpty;
 import java.util.List;
 
 /**
  * this is application authority controller.
  */
+@Validated
 @RestController
 @RequestMapping("/appAuth")
 public class AppAuthController {
 
     private final AppAuthService appAuthService;
 
-    /**
-     * Instantiates a new App auth controller.
-     *
-     * @param appAuthService the app auth service
-     */
-    @Autowired(required = false)
     public AppAuthController(final AppAuthService appAuthService) {
         this.appAuthService = appAuthService;
     }
@@ -132,7 +130,7 @@ public class AppAuthController {
      * @return the shenyu result
      */
     @GetMapping("/detailPath")
-    public ShenyuAdminResult detailPath(@RequestParam("id") final String id) {
+    public ShenyuAdminResult detailPath(@RequestParam("id") final @NotBlank String id) {
         return ShenyuAdminResult.success(ShenyuResultMessage.DETAIL_SUCCESS, appAuthService.detailPath(id));
     }
 
@@ -154,7 +152,7 @@ public class AppAuthController {
      * @return {@linkplain ShenyuAdminResult}
      */
     @PostMapping("/batchDelete")
-    public ShenyuAdminResult batchDelete(@RequestBody final List<String> ids) {
+    public ShenyuAdminResult batchDelete(@RequestBody @NotEmpty final List<@NotBlank String> ids) {
         Integer deleteCount = appAuthService.delete(ids);
         return ShenyuAdminResult.success(ShenyuResultMessage.DELETE_SUCCESS, deleteCount);
     }
@@ -166,7 +164,7 @@ public class AppAuthController {
      * @return the shenyu result
      */
     @PostMapping("/batchEnabled")
-    public ShenyuAdminResult batchEnabled(@RequestBody final BatchCommonDTO batchCommonDTO) {
+    public ShenyuAdminResult batchEnabled(@Valid @RequestBody final BatchCommonDTO batchCommonDTO) {
         final String result = appAuthService.enabled(batchCommonDTO.getIds(), batchCommonDTO.getEnabled());
         if (StringUtils.isNoneBlank(result)) {
             return ShenyuAdminResult.error(result);

@@ -17,12 +17,10 @@
 
 package org.apache.shenyu.springboot.plugin.dubbo.common;
 
-import org.apache.shenyu.plugin.api.ShenyuPlugin;
 import org.apache.shenyu.plugin.api.context.ShenyuContextDecorator;
-import org.apache.shenyu.plugin.api.param.BodyParamResolveService;
+import org.apache.shenyu.plugin.dubbo.common.param.DubboParamResolveService;
 import org.apache.shenyu.plugin.dubbo.common.context.DubboShenyuContextDecorator;
-import org.apache.shenyu.plugin.dubbo.common.param.DubboBodyParamResolveServiceImpl;
-import org.apache.shenyu.plugin.dubbo.common.response.DubboResponsePlugin;
+import org.apache.shenyu.plugin.dubbo.common.param.DubboParamResolveServiceImpl;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.SearchStrategy;
 import org.springframework.context.annotation.Bean;
@@ -45,23 +43,13 @@ public class DubboCommonConfiguration {
     }
     
     /**
-     * Dubbo response plugin shenyu plugin.
-     *
-     * @return the shenyu plugin
-     */
-    @Bean
-    public ShenyuPlugin dubboResponsePlugin() {
-        return new DubboResponsePlugin();
-    }
-    
-    /**
      * Generic param resolve service dubbo param resolve service.
      *
      * @return the dubbo param resolve service
      */
     @Bean
-    @ConditionalOnMissingBean(value = BodyParamResolveService.class, search = SearchStrategy.ALL)
-    public BodyParamResolveService dubboBodyParamResolveService() {
-        return new DubboBodyParamResolveServiceImpl();
+    @ConditionalOnMissingBean(value = DubboParamResolveService.class, search = SearchStrategy.ALL)
+    public DubboParamResolveService dubboParamResolveService() {
+        return new DubboParamResolveServiceImpl();
     }
 }

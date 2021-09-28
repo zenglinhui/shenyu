@@ -17,7 +17,8 @@
 
 package org.apache.shenyu.admin.disruptor.subscriber;
 
-import org.apache.shenyu.admin.service.ShenyuClientRegisterService;
+import org.apache.shenyu.admin.service.register.ShenyuClientRegisterServiceFactory;
+import org.apache.shenyu.common.constant.Constants;
 import org.apache.shenyu.register.common.dto.URIRegisterDTO;
 import org.apache.shenyu.register.common.subsriber.ExecutorTypeSubscriber;
 import org.apache.shenyu.register.common.type.DataType;
@@ -32,23 +33,23 @@ import java.util.stream.Collectors;
  * The type Uri register executor subscriber.
  */
 public class URIRegisterExecutorSubscriber implements ExecutorTypeSubscriber<URIRegisterDTO> {
-    
-    private final ShenyuClientRegisterService shenyuClientRegisterService;
-    
+
+    private final Map<String, ShenyuClientRegisterServiceFactory> shenyuClientRegisterService;
+
     /**
      * Instantiates a new Uri register executor subscriber.
      *
      * @param shenyuClientRegisterService the shenyu client register service
      */
-    public URIRegisterExecutorSubscriber(final ShenyuClientRegisterService shenyuClientRegisterService) {
+    public URIRegisterExecutorSubscriber(final Map<String, ShenyuClientRegisterServiceFactory> shenyuClientRegisterService) {
         this.shenyuClientRegisterService = shenyuClientRegisterService;
     }
-    
+
     @Override
     public DataType getType() {
         return DataType.URI;
     }
-    
+
     @Override
     public void executor(final Collection<URIRegisterDTO> dataList) {
         Map<String, List<URIRegisterDTO>> listMap = dataList.stream().collect(Collectors.groupingBy(URIRegisterDTO::getContextPath));
@@ -59,7 +60,7 @@ public class URIRegisterExecutorSubscriber implements ExecutorTypeSubscriber<URI
                     uriList.add(String.join(":", uriRegisterDTO.getHost(), uriRegisterDTO.getPort().toString()));
                 }
             });
-            shenyuClientRegisterService.registerURI(contextPath, uriList);
+            shenyuClientRegisterService.get(Constants.DEFAULT.toLowerCase()).registerURI(contextPath, uriList);
         });
     }
 }

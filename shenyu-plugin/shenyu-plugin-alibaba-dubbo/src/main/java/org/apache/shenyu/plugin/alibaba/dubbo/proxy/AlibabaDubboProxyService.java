@@ -18,9 +18,11 @@
 package org.apache.shenyu.plugin.alibaba.dubbo.proxy;
 
 import com.alibaba.dubbo.config.ReferenceConfig;
+import com.alibaba.dubbo.remoting.exchange.ResponseFuture;
+import com.alibaba.dubbo.rpc.RpcContext;
+import com.alibaba.dubbo.rpc.protocol.dubbo.FutureAdapter;
 import com.alibaba.dubbo.rpc.service.GenericException;
 import com.alibaba.dubbo.rpc.service.GenericService;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -28,27 +30,30 @@ import org.apache.shenyu.common.dto.MetaData;
 import org.apache.shenyu.common.exception.ShenyuException;
 import org.apache.shenyu.common.utils.ParamCheckUtils;
 import org.apache.shenyu.plugin.alibaba.dubbo.cache.ApplicationConfigCache;
-import org.apache.shenyu.plugin.api.param.BodyParamResolveService;
+import org.apache.shenyu.plugin.dubbo.common.param.DubboParamResolveService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
 /**
  * Alibaba dubbo proxy service is  use GenericService.
  */
-@Slf4j
 public class AlibabaDubboProxyService {
-    
-    private final BodyParamResolveService bodyParamResolveService;
-    
+
+    private static final Logger LOG = LoggerFactory.getLogger(AlibabaDubboProxyService.class);
+
+    private final DubboParamResolveService dubboParamResolveService;
+
     /**
      * Instantiates a new Dubbo proxy service.
      *
-     * @param bodyParamResolveService the generic param resolve service
+     * @param dubboParamResolveService the generic param resolve service
      */
-    public AlibabaDubboProxyService(final BodyParamResolveService bodyParamResolveService) {
-        this.bodyParamResolveService = bodyParamResolveService;
+    public AlibabaDubboProxyService(final DubboParamResolveService dubboParamResolveService) {
+        this.dubboParamResolveService = dubboParamResolveService;
     }
-    
+
     /**
      * Generic invoker object.
      *
@@ -57,24 +62,27 @@ public class AlibabaDubboProxyService {
      * @return the object
      * @throws ShenyuException the shenyu exception
      */
-    public Object genericInvoker(final String body, final MetaData metaData) throws ShenyuException {
+    public ResponseFuture genericInvoker(final String body, final MetaData metaData) throws ShenyuException {
         ReferenceConfig<GenericService> reference = ApplicationConfigCache.getInstance().get(metaData.getPath());
         if (Objects.isNull(reference) || StringUtils.isEmpty(reference.getInterface())) {
             ApplicationConfigCache.getInstance().invalidate(metaData.getPath());
             reference = ApplicationConfigCache.getInstance().initRef(metaData);
         }
-        GenericService genericService = reference.get();
         try {
+            GenericService genericService = reference.get();
             Pair<String[], Object[]> pair;
             if (StringUtils.isBlank(metaData.getParameterTypes()) || ParamCheckUtils.dubboBodyIsEmpty(body)) {
                 pair = new ImmutablePair<>(new String[]{}, new Object[]{});
             } else {
-                pair = bodyParamResolveService.buildParameter(body, metaData.getParameterTypes());
+                pair = dubboParamResolveService.buildParameter(body, metaData.getParameterTypes());
             }
-            return genericService.$invoke(metaData.getMethodName(), pair.getLeft(), pair.getRight());
+            genericService.$invoke(metaData.getMethodName(), pair.getLeft(), pair.getRight());
         } catch (GenericException e) {
-            log.error("dubbo invoker have exception", e);
+            LOG.error("dubbo invoker have exception", e);
             throw new ShenyuException(e.getExceptionMessage());
         }
+
+        FutureAdapter<?> adapter = (FutureAdapter<?>) RpcContext.getContext().getFuture();
+        return adapter.getFuture();
     }
 }

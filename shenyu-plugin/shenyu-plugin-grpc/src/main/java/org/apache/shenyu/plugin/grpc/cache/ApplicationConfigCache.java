@@ -20,9 +20,8 @@ package org.apache.shenyu.plugin.grpc.cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.shenyu.common.dto.SelectorData;
-import org.apache.shenyu.common.dto.convert.DivideUpstream;
+import org.apache.shenyu.common.dto.convert.selector.DivideUpstream;
 import org.apache.shenyu.common.exception.ShenyuException;
 import org.apache.shenyu.common.utils.GsonUtils;
 import org.apache.shenyu.plugin.grpc.resolver.ShenyuServiceInstance;
@@ -40,7 +39,6 @@ import java.util.stream.Collectors;
 /**
  * Grpc config cache.
  */
-@Slf4j
 public final class ApplicationConfigCache {
 
     private final int maxCount = 1000;

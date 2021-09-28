@@ -17,11 +17,13 @@
 
 package org.apache.shenyu.metrics.reporter;
 
+import org.apache.shenyu.metrics.constant.LabelNames;
+import org.apache.shenyu.metrics.entity.Metric;
+import org.apache.shenyu.metrics.spi.MetricsRegister;
+
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
-import org.apache.shenyu.metrics.entity.Metric;
-import org.apache.shenyu.metrics.api.MetricsRegister;
+import java.util.Optional;
 
 /**
  * Metrics reporter.
@@ -37,6 +39,9 @@ public final class MetricsReporter {
      */
     public static void register(final MetricsRegister metricsRegister) {
         MetricsReporter.metricsRegister = metricsRegister;
+        MetricsReporter.registerCounter(LabelNames.REQUEST_TOTAL, "shenyu request total count");
+        MetricsReporter.registerCounter(LabelNames.HTTP_REQUEST_TOTAL, new String[]{"path", "type"}, "shenyu http request type total count");
+        MetricsReporter.registerHistogram(LabelNames.EXECUTE_LATENCY_NAME, "the shenyu executor latency millis");
     }
     
     /**
@@ -70,9 +75,7 @@ public final class MetricsReporter {
      * @param document document for counter
      */
     public static void registerCounter(final String name, final String[] labelNames, final String document) {
-        if (Objects.nonNull(metricsRegister)) {
-            metricsRegister.registerCounter(name, labelNames, document);
-        }
+        Optional.ofNullable(metricsRegister).ifPresent(register -> register.registerCounter(name, labelNames, document));
     }
     
     /**
@@ -82,7 +85,7 @@ public final class MetricsReporter {
      * @param document document for counter
      */
     public static void registerCounter(final String name, final String document) {
-        metricsRegister.registerCounter(name, null, document);
+        registerCounter(name, null, document);
     }
     
     /**
@@ -93,7 +96,7 @@ public final class MetricsReporter {
      * @param document document for gauge
      */
     public static void registerGauge(final String name, final String[] labelNames, final String document) {
-        metricsRegister.registerGauge(name, labelNames, document);
+        Optional.ofNullable(metricsRegister).ifPresent(register -> register.registerGauge(name, labelNames, document));
     }
     
     /**
@@ -103,7 +106,7 @@ public final class MetricsReporter {
      * @param document document for gauge
      */
     public static void registerGauge(final String name, final String document) {
-        metricsRegister.registerGauge(name, null, document);
+        registerGauge(name, null, document);
     }
     
     /**
@@ -114,7 +117,7 @@ public final class MetricsReporter {
      * @param document document for histogram
      */
     public static void registerHistogram(final String name, final String[] labelNames, final String document) {
-        metricsRegister.registerHistogram(name, labelNames, document);
+        Optional.ofNullable(metricsRegister).ifPresent(register -> register.registerHistogram(name, labelNames, document));
     }
     
     /**
@@ -124,7 +127,7 @@ public final class MetricsReporter {
      * @param document document for histogram
      */
     public static void registerHistogram(final String name, final String document) {
-        metricsRegister.registerHistogram(name, null, document);
+        registerHistogram(name, null, document);
     }
     
     /**
@@ -134,7 +137,7 @@ public final class MetricsReporter {
      * @param labelValues label values
      */
     public static void counterIncrement(final String name, final String[] labelValues) {
-        metricsRegister.counterIncrement(name, labelValues);
+        counterIncrement(name, labelValues, 1);
     }
     
     /**
@@ -143,7 +146,7 @@ public final class MetricsReporter {
      * @param name name
      */
     public static void counterIncrement(final String name) {
-        counterIncrement(name, null);
+        counterIncrement(name, null, 1);
     }
     
     /**
@@ -154,7 +157,7 @@ public final class MetricsReporter {
      * @param count count
      */
     public static void counterIncrement(final String name, final String[] labelValues, final long count) {
-        metricsRegister.counterIncrement(name, labelValues, count);
+        Optional.ofNullable(metricsRegister).ifPresent(register -> register.counterIncrement(name, labelValues, count));
     }
     
     /**
@@ -164,7 +167,7 @@ public final class MetricsReporter {
      * @param labelValues label values
      */
     public static void gaugeIncrement(final String name, final String[] labelValues) {
-        metricsRegister.gaugeIncrement(name, labelValues);
+        Optional.ofNullable(metricsRegister).ifPresent(register -> register.gaugeIncrement(name, labelValues));
     }
     
     /**
@@ -183,7 +186,7 @@ public final class MetricsReporter {
      * @param labelValues label values
      */
     public static void gaugeDecrement(final String name, final String[] labelValues) {
-        metricsRegister.gaugeDecrement(name, labelValues);
+        Optional.ofNullable(metricsRegister).ifPresent(register -> register.gaugeDecrement(name, labelValues));
     }
     
     /**
@@ -203,7 +206,7 @@ public final class MetricsReporter {
      * @param duration duration
      */
     public static void recordTime(final String name, final String[] labelValues, final long duration) {
-        metricsRegister.recordTime(name, labelValues, duration);
+        Optional.ofNullable(metricsRegister).ifPresent(register -> register.recordTime(name, labelValues, duration));
     }
     
     /**
@@ -214,6 +217,14 @@ public final class MetricsReporter {
      */
     public static void recordTime(final String name, final long duration) {
         recordTime(name, null, duration);
+    }
+    
+    /**
+     * Clean.
+     */
+    public static void clean() {
+        Optional.ofNullable(metricsRegister).ifPresent(MetricsRegister::clean);
+        metricsRegister = null;
     }
     
     private static String[] getLabelNames(final List<String> labels) {

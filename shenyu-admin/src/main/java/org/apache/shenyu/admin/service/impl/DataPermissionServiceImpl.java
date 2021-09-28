@@ -21,8 +21,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.shenyu.admin.mapper.DataPermissionMapper;
 import org.apache.shenyu.admin.mapper.RuleMapper;
 import org.apache.shenyu.admin.mapper.SelectorMapper;
-import org.apache.shenyu.admin.model.vo.DataPermissionPageVO;
-import org.apache.shenyu.admin.service.DataPermissionService;
 import org.apache.shenyu.admin.model.dto.DataPermissionDTO;
 import org.apache.shenyu.admin.model.entity.DataPermissionDO;
 import org.apache.shenyu.admin.model.entity.RuleDO;
@@ -31,6 +29,8 @@ import org.apache.shenyu.admin.model.page.CommonPager;
 import org.apache.shenyu.admin.model.page.PageResultUtils;
 import org.apache.shenyu.admin.model.query.RuleQuery;
 import org.apache.shenyu.admin.model.query.SelectorQuery;
+import org.apache.shenyu.admin.model.vo.DataPermissionPageVO;
+import org.apache.shenyu.admin.service.DataPermissionService;
 import org.apache.shenyu.common.enums.AdminDataPermissionTypeEnum;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,9 +44,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * data permission vo.
+ * Implementation of the {@link org.apache.shenyu.admin.service.DataPermissionService}.
  */
-@Service("dataPermissionService")
+@Service
 public class DataPermissionServiceImpl implements DataPermissionService {
 
     private final DataPermissionMapper dataPermissionMapper;
@@ -55,9 +55,7 @@ public class DataPermissionServiceImpl implements DataPermissionService {
 
     private final SelectorMapper selectorMapper;
 
-    public DataPermissionServiceImpl(final DataPermissionMapper dataPermissionMapper,
-                                     final RuleMapper ruleMapper,
-                                     final SelectorMapper selectorMapper) {
+    public DataPermissionServiceImpl(final DataPermissionMapper dataPermissionMapper, final RuleMapper ruleMapper, final SelectorMapper selectorMapper) {
         this.dataPermissionMapper = dataPermissionMapper;
         this.ruleMapper = ruleMapper;
         this.selectorMapper = selectorMapper;
@@ -92,7 +90,7 @@ public class DataPermissionServiceImpl implements DataPermissionService {
      * @return int
      */
     @Override
-    @Transactional(rollbackFor = RuntimeException.class)
+    @Transactional(rollbackFor = Exception.class)
     public int createSelector(final DataPermissionDTO dataPermissionDTO) {
         List<DataPermissionDO> allDOList = new LinkedList<>();
 
@@ -123,7 +121,7 @@ public class DataPermissionServiceImpl implements DataPermissionService {
      * @return int  effect rows
      */
     @Override
-    @Transactional(rollbackFor = RuntimeException.class)
+    @Transactional(rollbackFor = Exception.class)
     public int deleteSelector(final DataPermissionDTO dataPermissionDTO) {
         List<String> allRuleIds = ruleMapper.findBySelectorId(dataPermissionDTO.getDataId())
                 .stream()
@@ -207,7 +205,7 @@ public class DataPermissionServiceImpl implements DataPermissionService {
      * @return int, effect rows count
      */
     @Override
-    @Transactional(rollbackFor = RuntimeException.class)
+    @Transactional(rollbackFor = Exception.class)
     public int createRule(final DataPermissionDTO dataPermissionDTO) {
 
         RuleDO ruleDO = ruleMapper.selectById(dataPermissionDTO.getDataId());
@@ -236,7 +234,7 @@ public class DataPermissionServiceImpl implements DataPermissionService {
      * @return effect rows count
      */
     @Override
-    @Transactional(rollbackFor = RuntimeException.class)
+    @Transactional(rollbackFor = Exception.class)
     public int deleteRule(final DataPermissionDTO dataPermissionDTO) {
         return dataPermissionMapper.deleteByUniqueKey(dataPermissionDTO.getDataId(), dataPermissionDTO.getUserId(),
                 AdminDataPermissionTypeEnum.RULE.ordinal());

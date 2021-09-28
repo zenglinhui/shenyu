@@ -18,10 +18,19 @@
 package org.apache.shenyu.admin.config;
 
 import com.alibaba.nacos.api.config.ConfigService;
+import com.ecwid.consul.v1.ConsulClient;
+import io.etcd.jetcd.Client;
 import org.I0Itec.zkclient.ZkClient;
+import org.apache.shenyu.admin.config.properties.ConsulProperties;
+import org.apache.shenyu.admin.config.properties.EtcdProperties;
 import org.apache.shenyu.admin.config.properties.HttpSyncProperties;
 import org.apache.shenyu.admin.config.properties.WebsocketSyncProperties;
 import org.apache.shenyu.admin.listener.DataChangedListener;
+import org.apache.shenyu.admin.listener.consul.ConsulDataChangedListener;
+import org.apache.shenyu.admin.listener.consul.ConsulDataInit;
+import org.apache.shenyu.admin.listener.etcd.EtcdClient;
+import org.apache.shenyu.admin.listener.etcd.EtcdDataDataChangedListener;
+import org.apache.shenyu.admin.listener.etcd.EtcdDataInit;
 import org.apache.shenyu.admin.listener.http.HttpLongPollingDataChangedListener;
 import org.apache.shenyu.admin.listener.nacos.NacosDataChangedListener;
 import org.apache.shenyu.admin.listener.nacos.NacosDataInit;
@@ -166,6 +175,92 @@ public class DataSyncConfiguration {
         @ConditionalOnMissingBean(ServerEndpointExporter.class)
         public ServerEndpointExporter serverEndpointExporter() {
             return new ServerEndpointExporter();
+        }
+    }
+
+    /**
+     * The type Etcd listener.
+     */
+    @Configuration
+    @ConditionalOnProperty(prefix = "shenyu.sync.etcd", name = "url")
+    @EnableConfigurationProperties(EtcdProperties.class)
+    static class EtcdListener {
+
+        @Bean
+        public EtcdClient etcdClient(final EtcdProperties etcdProperties) {
+            Client client = Client.builder()
+                    .endpoints(etcdProperties.getUrl())
+                    .build();
+            return new EtcdClient(client);
+        }
+
+        /**
+         * Config event listener data changed listener.
+         *
+         * @param etcdClient the etcd client
+         * @return the data changed listener
+         */
+        @Bean
+        @ConditionalOnMissingBean(EtcdDataDataChangedListener.class)
+        public DataChangedListener etcdDataChangedListener(final EtcdClient etcdClient) {
+            return new EtcdDataDataChangedListener(etcdClient);
+        }
+
+        /**
+         * data init.
+         *
+         * @param etcdClient        the etcd client
+         * @param syncDataService the sync data service
+         * @return the etcd data init
+         */
+        @Bean
+        @ConditionalOnMissingBean(EtcdDataInit.class)
+        public EtcdDataInit etcdDataInit(final EtcdClient etcdClient, final SyncDataService syncDataService) {
+            return new EtcdDataInit(etcdClient, syncDataService);
+        }
+    }
+
+    /**
+     * The type Consul listener.
+     */
+    @Configuration
+    @ConditionalOnProperty(prefix = "shenyu.sync.consul", name = "url")
+    @EnableConfigurationProperties(ConsulProperties.class)
+    static class ConsulListener {
+
+        /**
+         * init Consul client.
+         * @param consulProperties the consul properties
+         * @return Consul client
+         */
+        @Bean
+        public ConsulClient consulClient(final ConsulProperties consulProperties) {
+            return new ConsulClient(consulProperties.getUrl());
+        }
+
+        /**
+         * Config event listener data changed listener.
+         *
+         * @param consulClient the consul client
+         * @return the data changed listener
+         */
+        @Bean
+        @ConditionalOnMissingBean(ConsulDataChangedListener.class)
+        public DataChangedListener consulDataChangedListener(final ConsulClient consulClient) {
+            return new ConsulDataChangedListener(consulClient);
+        }
+
+        /**
+         * Consul data init.
+         *
+         * @param consulClient the consul client
+         * @param syncDataService the sync data service
+         * @return the consul data init
+         */
+        @Bean
+        @ConditionalOnMissingBean(ConsulDataInit.class)
+        public ConsulDataInit consulDataInit(final ConsulClient consulClient, final SyncDataService syncDataService) {
+            return new ConsulDataInit(consulClient, syncDataService);
         }
     }
 }
