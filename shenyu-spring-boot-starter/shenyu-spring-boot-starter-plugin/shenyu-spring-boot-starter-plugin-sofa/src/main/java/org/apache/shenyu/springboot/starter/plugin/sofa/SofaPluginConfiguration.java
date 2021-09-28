@@ -24,12 +24,15 @@ import org.apache.shenyu.plugin.base.handler.PluginDataHandler;
 import org.apache.shenyu.plugin.sofa.SofaPlugin;
 import org.apache.shenyu.plugin.sofa.context.SofaShenyuContextDecorator;
 import org.apache.shenyu.plugin.sofa.handler.SofaPluginDataHandler;
-import org.apache.shenyu.plugin.sofa.param.SofaBodyParamResolveServiceImpl;
+import org.apache.shenyu.plugin.sofa.param.SofaParamResolveService;
+import org.apache.shenyu.plugin.sofa.param.SofaParamResolveServiceImpl;
 import org.apache.shenyu.plugin.sofa.proxy.SofaProxyService;
-import org.apache.shenyu.plugin.sofa.response.SofaResponsePlugin;
 import org.apache.shenyu.plugin.sofa.subscriber.SofaMetaDataSubscriber;
 import org.apache.shenyu.sync.data.api.MetaDataSubscriber;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.SearchStrategy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -39,27 +42,29 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConditionalOnClass(SofaPlugin.class)
 public class SofaPluginConfiguration {
-
+    
     /**
      * Sofa plugin shenyu plugin.
      *
+     * @param sofaParamResolveService the sofa param resolve service
      * @return the shenyu plugin
      */
     @Bean
-    public ShenyuPlugin sofaPlugin() {
-        return new SofaPlugin(new SofaProxyService(new SofaBodyParamResolveServiceImpl()));
+    public ShenyuPlugin sofaPlugin(final ObjectProvider<SofaParamResolveService> sofaParamResolveService) {
+        return new SofaPlugin(new SofaProxyService(sofaParamResolveService.getIfAvailable()));
     }
-
+    
     /**
-     * Dubbo response plugin shenyu plugin.
+     * Sofa param resolve service sofa param resolve service.
      *
-     * @return the shenyu plugin
+     * @return the sofa param resolve service
      */
     @Bean
-    public ShenyuPlugin sofaResponsePlugin() {
-        return new SofaResponsePlugin();
+    @ConditionalOnMissingBean(value = SofaParamResolveService.class, search = SearchStrategy.ALL)
+    public SofaParamResolveService sofaParamResolveService() {
+        return new SofaParamResolveServiceImpl();
     }
-
+    
     /**
      * Sofa plugin data handler plugin data handler.
      *
@@ -69,7 +74,7 @@ public class SofaPluginConfiguration {
     public PluginDataHandler sofaPluginDataHandler() {
         return new SofaPluginDataHandler();
     }
-
+    
     /**
      * Sofa meta data subscriber meta data subscriber.
      *

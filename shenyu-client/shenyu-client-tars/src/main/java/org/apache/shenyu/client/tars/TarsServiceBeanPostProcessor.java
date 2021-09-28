@@ -17,7 +17,7 @@
 
 package org.apache.shenyu.client.tars;
 
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.shenyu.client.core.disruptor.ShenyuClientRegisterEventPublisher;
@@ -42,15 +42,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
  * The Tars ServiceBean PostProcessor.
  */
-@Slf4j
 public class TarsServiceBeanPostProcessor implements BeanPostProcessor {
 
     private final LocalVariableTableParameterNameDiscoverer localVariableTableParameterNameDiscoverer = new LocalVariableTableParameterNameDiscoverer();
@@ -79,7 +76,7 @@ public class TarsServiceBeanPostProcessor implements BeanPostProcessor {
         this.ipAndPort = ip + ":" + port;
         this.host = props.getProperty("host");
         this.port = Integer.parseInt(port);
-        executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        executorService = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("shenyu-tars-client-thread-pool-%d").build());
         publisher.start(shenyuClientRegisterRepository);
     }
 
@@ -110,8 +107,7 @@ public class TarsServiceBeanPostProcessor implements BeanPostProcessor {
         String ipAndPort = this.ipAndPort;
         String path = this.contextPath + shenyuTarsClient.path();
         String desc = shenyuTarsClient.desc();
-        String configHost = this.host;
-        String host = StringUtils.isBlank(configHost) ? IpUtils.getHost() : configHost;
+        String host = IpUtils.isCompleteHost(this.host) ? this.host : IpUtils.getHost(this.host);
         String configRuleName = shenyuTarsClient.ruleName();
         String ruleName = ("".equals(configRuleName)) ? path : configRuleName;
         String methodName = method.getName();
@@ -144,10 +140,7 @@ public class TarsServiceBeanPostProcessor implements BeanPostProcessor {
                 params.add(Pair.of(paramTypes[i].getName(), paramNames[i]));
             }
         }
-        return TarsRpcExt.RpcExt.builder().methodName(method.getName())
-                .params(params)
-                .returnType(method.getReturnType().getName())
-                .build();
+        return new TarsRpcExt.RpcExt(method.getName(), params, method.getReturnType().getName());
     }
 
     private String buildRpcExt(final Method[] methods) {
@@ -158,9 +151,7 @@ public class TarsServiceBeanPostProcessor implements BeanPostProcessor {
                 list.add(buildRpcExt(method));
             }
         }
-        TarsRpcExt buildList = TarsRpcExt.builder()
-                .methodInfo(list)
-                .build();
+        TarsRpcExt buildList = new TarsRpcExt(list);
         return GsonUtils.getInstance().toJson(buildList);
     }
 }

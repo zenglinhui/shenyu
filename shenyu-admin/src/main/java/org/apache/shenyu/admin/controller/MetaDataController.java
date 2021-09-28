@@ -18,8 +18,6 @@
 package org.apache.shenyu.admin.controller;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.shenyu.admin.service.MetaDataService;
-import org.apache.shenyu.admin.utils.ShenyuResultMessage;
 import org.apache.shenyu.admin.model.dto.BatchCommonDTO;
 import org.apache.shenyu.admin.model.dto.MetaDataDTO;
 import org.apache.shenyu.admin.model.page.CommonPager;
@@ -27,7 +25,9 @@ import org.apache.shenyu.admin.model.page.PageParameter;
 import org.apache.shenyu.admin.model.query.MetaDataQuery;
 import org.apache.shenyu.admin.model.result.ShenyuAdminResult;
 import org.apache.shenyu.admin.model.vo.MetaDataVO;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.shenyu.admin.service.MetaDataService;
+import org.apache.shenyu.admin.utils.ShenyuResultMessage;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,23 +35,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.validation.Valid;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotEmpty;
 import java.util.List;
 
 /**
  * The type Meta data controller.
  */
+@Validated
 @RestController
 @RequestMapping("/meta-data")
 public class MetaDataController {
 
     private final MetaDataService metaDataService;
 
-    /**
-     * Instantiates a new Meta data controller.
-     *
-     * @param metaDataService the meta data service
-     */
-    @Autowired(required = false)
     public MetaDataController(final MetaDataService metaDataService) {
         this.metaDataService = metaDataService;
     }
@@ -109,7 +107,7 @@ public class MetaDataController {
      * @return the shenyu result
      */
     @PostMapping("/createOrUpdate")
-    public ShenyuAdminResult createOrUpdate(@RequestBody final MetaDataDTO metaDataDTO) {
+    public ShenyuAdminResult createOrUpdate(@Valid @RequestBody final MetaDataDTO metaDataDTO) {
         String result = metaDataService.createOrUpdate(metaDataDTO);
         if (StringUtils.isNoneBlank(result)) {
             return ShenyuAdminResult.error(result);
@@ -124,7 +122,7 @@ public class MetaDataController {
      * @return the shenyu result
      */
     @PostMapping("/batchDeleted")
-    public ShenyuAdminResult batchDeleted(@RequestBody final List<String> ids) {
+    public ShenyuAdminResult batchDeleted(@RequestBody @NotEmpty final List<@NotBlank String> ids) {
         Integer deleteCount = metaDataService.delete(ids);
         return ShenyuAdminResult.success(ShenyuResultMessage.DELETE_SUCCESS, deleteCount);
     }
@@ -136,7 +134,7 @@ public class MetaDataController {
      * @return the shenyu result
      */
     @PostMapping("/batchEnabled")
-    public ShenyuAdminResult batchEnabled(@RequestBody final BatchCommonDTO batchCommonDTO) {
+    public ShenyuAdminResult batchEnabled(@Valid @RequestBody final BatchCommonDTO batchCommonDTO) {
         final String result = metaDataService.enabled(batchCommonDTO.getIds(), batchCommonDTO.getEnabled());
         if (StringUtils.isNoneBlank(result)) {
             return ShenyuAdminResult.error(result);

@@ -18,20 +18,24 @@
 package org.apache.shenyu.plugin.resilience4j.handler;
 
 import org.apache.shenyu.common.dto.RuleData;
-import org.apache.shenyu.common.dto.convert.Resilience4JHandle;
+import org.apache.shenyu.common.dto.convert.rule.Resilience4JHandle;
 import org.apache.shenyu.common.enums.PluginEnum;
 import org.apache.shenyu.common.utils.GsonUtils;
+import org.apache.shenyu.plugin.base.cache.CommonHandleCache;
 import org.apache.shenyu.plugin.base.handler.PluginDataHandler;
+import org.apache.shenyu.plugin.base.utils.BeanHolder;
 import org.apache.shenyu.plugin.base.utils.CacheKeyUtils;
-import org.apache.shenyu.plugin.resilience4j.cache.Resilience4jRuleHandleCache;
 import org.apache.shenyu.plugin.resilience4j.factory.Resilience4JRegistryFactory;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Resilience4J rule handle.
  */
 public class Resilience4JHandler implements PluginDataHandler {
+
+    public static final Supplier<CommonHandleCache<String, Resilience4JHandle>> CACHED_HANDLE = new BeanHolder(CommonHandleCache::new);
 
     @Override
     public void handlerRule(final RuleData ruleData) {
@@ -39,7 +43,7 @@ public class Resilience4JHandler implements PluginDataHandler {
         Resilience4JRegistryFactory.remove(key);
         Optional.ofNullable(ruleData.getHandle()).ifPresent(s -> {
             final Resilience4JHandle resilience4JHandle = GsonUtils.getInstance().fromJson(s, Resilience4JHandle.class);
-            Resilience4jRuleHandleCache.getInstance().cachedHandle(key, resilience4JHandle);
+            CACHED_HANDLE.get().cachedHandle(key, resilience4JHandle);
         });
     }
 
@@ -47,7 +51,7 @@ public class Resilience4JHandler implements PluginDataHandler {
     public void removeRule(final RuleData ruleData) {
         String key = CacheKeyUtils.INST.getKey(ruleData);
         Resilience4JRegistryFactory.remove(key);
-        Optional.ofNullable(ruleData.getHandle()).ifPresent(s -> Resilience4jRuleHandleCache.getInstance().removeHandle(key));
+        Optional.ofNullable(ruleData.getHandle()).ifPresent(s -> CACHED_HANDLE.get().removeHandle(key));
     }
 
     @Override

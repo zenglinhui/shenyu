@@ -21,10 +21,9 @@ import org.apache.shenyu.admin.AbstractSpringIntegrationTest;
 import org.apache.shenyu.admin.model.dto.PluginDTO;
 import org.apache.shenyu.admin.model.entity.PluginDO;
 import org.apache.shenyu.admin.model.query.PluginQuery;
-import org.h2.engine.Role;
 import org.junit.Test;
 import javax.annotation.Resource;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -74,8 +73,8 @@ public final class PluginMapperTest extends AbstractSpringIntegrationTest {
         final int insertResult = pluginMapper.insert(pluginDO);
         assertThat(insertResult, equalTo(1));
 
-        final List<PluginDO> resultPluginDOS = pluginMapper.selectByNames(Arrays.asList(pluginDO.getName()));
-        assertThat(pluginDO, equalTo(resultPluginDOS.stream().findAny().get()));
+        final List<PluginDO> resultPluginDOS = pluginMapper.selectByNames(Collections.singletonList(pluginDO.getName()));
+        assertThat(pluginDO, equalTo(resultPluginDOS.stream().findAny().orElse(null)));
 
         final int deleteResult = pluginMapper.delete(pluginDO.getId());
         assertThat(deleteResult, equalTo(1));
@@ -220,7 +219,7 @@ public final class PluginMapperTest extends AbstractSpringIntegrationTest {
         final PluginDTO pluginDTO = new PluginDTO();
         pluginDTO.setEnabled(true);
         pluginDTO.setConfig("test-config");
-        pluginDTO.setRole(Role.USER);
+        pluginDTO.setRole("1");
         pluginDTO.setName("test-name");
         return pluginDTO;
     }

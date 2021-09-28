@@ -17,7 +17,6 @@
 
 package org.apache.shenyu.client.springcloud.init;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.shenyu.client.core.disruptor.ShenyuClientRegisterEventPublisher;
 import org.apache.shenyu.common.enums.RpcTypeEnum;
@@ -25,6 +24,8 @@ import org.apache.shenyu.common.utils.IpUtils;
 import org.apache.shenyu.register.client.api.ShenyuClientRegisterRepository;
 import org.apache.shenyu.register.common.config.ShenyuRegisterCenterConfig;
 import org.apache.shenyu.register.common.dto.MetaDataRegisterDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.core.env.Environment;
@@ -36,19 +37,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * The type Context register listener.
  */
-@Slf4j
 public class ContextRegisterListener implements ApplicationListener<ContextRefreshedEvent> {
-    
+
+    private static final Logger LOG = LoggerFactory.getLogger(ContextRegisterListener.class);
+
     private ShenyuClientRegisterEventPublisher publisher = ShenyuClientRegisterEventPublisher.getInstance();
-    
+
     private final AtomicBoolean registered = new AtomicBoolean(false);
-    
+
     private final Boolean isFull;
-    
+
     private Environment env;
-    
+
     private String contextPath;
-    
+
+    private final String host;
+
     /**
      * Instantiates a new Context register listener.
      *
@@ -59,6 +63,7 @@ public class ContextRegisterListener implements ApplicationListener<ContextRefre
     public ContextRegisterListener(final ShenyuRegisterCenterConfig config, final Environment env, final ShenyuClientRegisterRepository shenyuClientRegisterRepository) {
         Properties props = config.getProps();
         this.isFull = Boolean.parseBoolean(props.getProperty("isFull", "false"));
+        this.host = props.getProperty("host");
         if (isFull) {
             String registerType = config.getRegisterType();
             String serverLists = config.getServerLists();
@@ -67,7 +72,7 @@ public class ContextRegisterListener implements ApplicationListener<ContextRefre
             if (StringUtils.isBlank(contextPath) || StringUtils.isBlank(registerType)
                     || StringUtils.isBlank(serverLists) || StringUtils.isBlank(appName)) {
                 String errorMsg = "spring cloud param must config the contextPath ,registerType , serverLists  and appName";
-                log.error(errorMsg);
+                LOG.error(errorMsg);
                 throw new RuntimeException(errorMsg);
             }
             this.env = env;
@@ -75,7 +80,7 @@ public class ContextRegisterListener implements ApplicationListener<ContextRefre
             publisher.start(shenyuClientRegisterRepository);
         }
     }
-    
+
     @Override
     public void onApplicationEvent(@NonNull final ContextRefreshedEvent contextRefreshedEvent) {
         if (!registered.compareAndSet(false, true)) {
@@ -85,12 +90,12 @@ public class ContextRegisterListener implements ApplicationListener<ContextRefre
             publisher.publishEvent(buildMetaDataDTO());
         }
     }
-    
+
     private MetaDataRegisterDTO buildMetaDataDTO() {
         String contextPath = this.contextPath;
         String appName = env.getProperty("spring.application.name");
         Integer port = env.getProperty("server.port", Integer.class, 8080);
-        String host = IpUtils.getHost();
+        String host = IpUtils.isCompleteHost(this.host) ? this.host : IpUtils.getHost(this.host);
         String path = contextPath + "/**";
         return MetaDataRegisterDTO.builder()
                 .contextPath(contextPath)

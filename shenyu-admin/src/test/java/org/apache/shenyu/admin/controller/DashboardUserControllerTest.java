@@ -27,6 +27,7 @@ import org.apache.shenyu.admin.model.vo.DashboardUserEditVO;
 import org.apache.shenyu.admin.model.vo.DashboardUserVO;
 import org.apache.shenyu.admin.model.vo.RoleVO;
 import org.apache.shenyu.common.utils.GsonUtils;
+import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -70,7 +71,7 @@ public final class DashboardUserControllerTest {
 
     private final DashboardUserVO dashboardUserVO = new DashboardUserVO("id",
             "userName",
-            "jHcpKkiDbbQh7W7hh8yQSA==",
+            "bbiB8zbUo3z3oA0VqEB/IA==",
             0,
             false,
             "dateCreated",
@@ -83,6 +84,7 @@ public final class DashboardUserControllerTest {
     public void setUp() throws Exception {
         final SecretProperties secretProperties = new SecretProperties();
         secretProperties.setKey("2095132720951327");
+        secretProperties.setIv("6075877187097700");
         ReflectionTestUtils.setField(dashboardUserController, "secretProperties", secretProperties);
         mockMvc = MockMvcBuilders.standaloneSetup(dashboardUserController).build();
     }
@@ -120,7 +122,7 @@ public final class DashboardUserControllerTest {
         mockMvc.perform(get(url))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message", is(ShenyuResultMessage.DETAIL_SUCCESS)))
-                .andExpect(jsonPath("$.data.password", is("123456")));
+                .andExpect(jsonPath("$.data.password", is("")));
 
         given(dashboardUserService.findById(any())).willReturn(null);
         mockMvc.perform(get(url))
@@ -157,7 +159,7 @@ public final class DashboardUserControllerTest {
     @Test
     public void deleteDashboardUser() throws Exception {
         final String url = "/dashboardUser/batch";
-        final List<String> ids = Collections.emptyList();
+        final List<String> ids = Lists.newArrayList();
         given(dashboardUserService.delete(any())).willReturn(0);
         mockMvc.perform(delete(url, ids)
                 .content(GsonUtils.getInstance().toJson(ids))

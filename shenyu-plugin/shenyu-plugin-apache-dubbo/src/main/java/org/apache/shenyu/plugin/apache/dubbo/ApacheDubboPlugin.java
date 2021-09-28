@@ -17,8 +17,8 @@
 
 package org.apache.shenyu.plugin.apache.dubbo;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.dubbo.rpc.RpcContext;
 import org.apache.shenyu.common.constant.Constants;
 import org.apache.shenyu.common.dto.MetaData;
 import org.apache.shenyu.common.dto.RuleData;
@@ -27,11 +27,13 @@ import org.apache.shenyu.common.enums.PluginEnum;
 import org.apache.shenyu.common.enums.RpcTypeEnum;
 import org.apache.shenyu.plugin.apache.dubbo.proxy.ApacheDubboProxyService;
 import org.apache.shenyu.plugin.api.ShenyuPluginChain;
-import org.apache.shenyu.plugin.api.result.ShenyuResultEnum;
-import org.apache.shenyu.plugin.base.AbstractShenyuPlugin;
 import org.apache.shenyu.plugin.api.context.ShenyuContext;
+import org.apache.shenyu.plugin.api.result.ShenyuResultEnum;
 import org.apache.shenyu.plugin.api.result.ShenyuResultWrap;
 import org.apache.shenyu.plugin.api.utils.WebFluxResultUtils;
+import org.apache.shenyu.plugin.base.AbstractShenyuPlugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -41,8 +43,9 @@ import java.util.Objects;
 /**
  * The type Apache dubbo plugin.
  */
-@Slf4j
 public class ApacheDubboPlugin extends AbstractShenyuPlugin {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ApacheDubboPlugin.class);
 
     private final ApacheDubboProxyService dubboProxyService;
 
@@ -62,8 +65,7 @@ public class ApacheDubboPlugin extends AbstractShenyuPlugin {
         assert shenyuContext != null;
         MetaData metaData = exchange.getAttribute(Constants.META_DATA);
         if (!checkMetaData(metaData)) {
-            assert metaData != null;
-            log.error(" path is :{}, meta data have error.... {}", shenyuContext.getPath(), metaData.toString());
+            LOG.error(" path is : {}, meta data have error : {}", shenyuContext.getPath(), metaData);
             exchange.getResponse().setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
             Object error = ShenyuResultWrap.error(ShenyuResultEnum.META_DATA_ERROR.getCode(), ShenyuResultEnum.META_DATA_ERROR.getMsg(), null);
             return WebFluxResultUtils.result(exchange, error);
@@ -73,6 +75,9 @@ public class ApacheDubboPlugin extends AbstractShenyuPlugin {
             Object error = ShenyuResultWrap.error(ShenyuResultEnum.DUBBO_HAVE_BODY_PARAM.getCode(), ShenyuResultEnum.DUBBO_HAVE_BODY_PARAM.getMsg(), null);
             return WebFluxResultUtils.result(exchange, error);
         }
+        RpcContext.getContext().setAttachment(Constants.DUBBO_SELECTOR_ID, selector.getId());
+        RpcContext.getContext().setAttachment(Constants.DUBBO_RULE_ID, rule.getId());
+        RpcContext.getContext().setAttachment(Constants.DUBBO_REMOTE_ADDRESS, Objects.requireNonNull(exchange.getRequest().getRemoteAddress()).getAddress().getHostAddress());
         final Mono<Object> result = dubboProxyService.genericInvoker(param, metaData, exchange);
         return result.then(chain.execute(exchange));
     }
@@ -94,7 +99,7 @@ public class ApacheDubboPlugin extends AbstractShenyuPlugin {
      * @return default false.
      */
     @Override
-    public Boolean skip(final ServerWebExchange exchange) {
+    public boolean skip(final ServerWebExchange exchange) {
         final ShenyuContext shenyuContext = exchange.getAttribute(Constants.CONTEXT);
         assert shenyuContext != null;
         return !Objects.equals(shenyuContext.getRpcType(), RpcTypeEnum.DUBBO.getName());

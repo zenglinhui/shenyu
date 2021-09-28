@@ -21,17 +21,19 @@ import org.apache.shenyu.client.dubbo.common.annotation.ShenyuDubboClient;
 import org.apache.shenyu.examples.dubbo.api.entity.DubboTest;
 import org.apache.shenyu.examples.dubbo.api.entity.ListResp;
 import org.apache.shenyu.examples.dubbo.api.service.DubboTestService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Random;
 
 /**
  * The type Dubbo service.
- *
- * @author KevinClair
- **/
+ */
 @Service
 public class DubboTestServiceImpl implements DubboTestService {
+
+    private static final Logger logger = LoggerFactory.getLogger(DubboTestServiceImpl.class);
 
     @Override
     @ShenyuDubboClient(path = "/findById", desc = "Query by Id")
@@ -39,6 +41,7 @@ public class DubboTestServiceImpl implements DubboTestService {
         DubboTest dubboTest = new DubboTest();
         dubboTest.setId(id);
         dubboTest.setName("hello world shenyu Apache, findById");
+        logger.info("==========================================接口被调用===================================");
         return dubboTest;
     }
 

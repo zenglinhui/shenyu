@@ -17,18 +17,18 @@
 
 package org.apache.shenyu.client.grpc.json;
 
+import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.Attributes;
-import io.grpc.MethodDescriptor;
-import io.grpc.Status;
-import io.grpc.ServerCall;
 import io.grpc.Metadata;
-
-import lombok.extern.slf4j.Slf4j;
-import org.apache.shenyu.protocol.grpc.message.JsonReply;
-
+import io.grpc.ServerCall;
+import io.grpc.Status;
+import io.grpc.MethodDescriptor;
+import org.apache.shenyu.protocol.grpc.message.JsonMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Handle response of json generic service.
@@ -36,8 +36,9 @@ import org.apache.shenyu.protocol.grpc.message.JsonReply;
  * @param <R> request message
  * @param <P> response message
  */
-@Slf4j
 public class JsonForwardingServerCall<R, P> extends ServerCall<R, P> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(JsonForwardingServerCall.class);
 
     private final ServerCall<P, P> call;
 
@@ -52,22 +53,20 @@ public class JsonForwardingServerCall<R, P> extends ServerCall<R, P> {
     @SuppressWarnings("unchecked")
     @Override
     public void sendMessage(final P message) {
-        String jsonFormat;
-        JsonReply rep;
         try {
             if (message == null) {
                 delegate().sendMessage(null);
                 return;
             }
 
-            jsonFormat = JsonFormat.printer().includingDefaultValueFields().preservingProtoFieldNames()
+            String jsonFormat = JsonFormat.printer().includingDefaultValueFields().preservingProtoFieldNames()
                     .print((MessageOrBuilder) message);
 
-            rep = JsonReply.newBuilder().setMessage(jsonFormat).build();
-            log.debug("begin send json response: {}", jsonFormat);
-            delegate().sendMessage((P) rep);
+            DynamicMessage respMessage = JsonMessage.buildJsonMessage(jsonFormat);
+            LOG.debug("begin send json response");
+            delegate().sendMessage((P) respMessage);
         } catch (InvalidProtocolBufferException e) {
-            log.error("handle json message is error", e);
+            LOG.error("handle json message is error", e);
             throw Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException();
         }
     }

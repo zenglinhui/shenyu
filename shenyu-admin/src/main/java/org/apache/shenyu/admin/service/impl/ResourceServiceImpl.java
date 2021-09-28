@@ -19,9 +19,9 @@ package org.apache.shenyu.admin.service.impl;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.shenyu.admin.aspect.annotation.Pageable;
 import org.apache.shenyu.admin.mapper.PermissionMapper;
 import org.apache.shenyu.admin.mapper.ResourceMapper;
-import org.apache.shenyu.admin.service.ResourceService;
 import org.apache.shenyu.admin.model.dto.PermissionDTO;
 import org.apache.shenyu.admin.model.dto.ResourceDTO;
 import org.apache.shenyu.admin.model.entity.PermissionDO;
@@ -31,9 +31,9 @@ import org.apache.shenyu.admin.model.page.PageResultUtils;
 import org.apache.shenyu.admin.model.query.ResourceQuery;
 import org.apache.shenyu.admin.model.vo.PermissionMenuVO.MenuInfo;
 import org.apache.shenyu.admin.model.vo.ResourceVO;
+import org.apache.shenyu.admin.service.ResourceService;
 import org.apache.shenyu.common.constant.AdminConstants;
 import org.apache.shenyu.common.enums.AdminResourceEnum;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
@@ -46,16 +46,15 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * this Resource Service Impl.
+ * Implementation of the {@link org.apache.shenyu.admin.service.ResourceService}.
  */
-@Service("resourceService")
+@Service
 public class ResourceServiceImpl implements ResourceService {
 
     private final ResourceMapper resourceMapper;
 
     private final PermissionMapper permissionMapper;
 
-    @Autowired(required = false)
     public ResourceServiceImpl(final ResourceMapper resourceMapper, final PermissionMapper permissionMapper) {
         this.resourceMapper = resourceMapper;
         this.permissionMapper = permissionMapper;
@@ -134,9 +133,9 @@ public class ResourceServiceImpl implements ResourceService {
      * @return {@linkplain CommonPager}
      */
     @Override
+    @Pageable
     public CommonPager<ResourceVO> listByPage(final ResourceQuery resourceQuery) {
         return PageResultUtils.result(resourceQuery.getPageParameter(),
-            () -> resourceMapper.countByQuery(resourceQuery),
             () -> resourceMapper.selectByQuery(resourceQuery)
                             .stream()
                             .map(ResourceVO::buildResourceVO)

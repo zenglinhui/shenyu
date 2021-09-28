@@ -17,29 +17,116 @@
 
 package org.apache.shenyu.plugin.grpc.proto;
 
-import com.google.protobuf.Message;
+import com.google.protobuf.DynamicMessage;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import io.grpc.stub.StreamObserver;
-import lombok.Builder;
-import lombok.Getter;
-import org.apache.shenyu.protocol.grpc.message.JsonRequest;
+
+import java.util.List;
 
 /**
  * ShenyuGrpcCallRequest.
  */
-@Builder
-@Getter
 public class ShenyuGrpcCallRequest {
 
     private Channel channel;
 
     private CallOptions callOptions;
 
-    private JsonRequest requests;
+    private List<DynamicMessage> requests;
 
-    private MethodDescriptor<Message, Message> methodDescriptor;
+    private MethodDescriptor<DynamicMessage, DynamicMessage> methodDescriptor;
 
-    private StreamObserver<Message> responseObserver;
+    private StreamObserver<DynamicMessage> responseObserver;
+
+    /**
+     * Gets channel.
+     *
+     * @return the channel
+     */
+    public Channel getChannel() {
+        return channel;
+    }
+
+    /**
+     * Sets channel.
+     *
+     * @param channel the channel
+     */
+    public void setChannel(final Channel channel) {
+        this.channel = channel;
+    }
+
+    /**
+     * Gets call options.
+     *
+     * @return the call options
+     */
+    public CallOptions getCallOptions() {
+        return callOptions;
+    }
+
+    /**
+     * Sets call options.
+     *
+     * @param callOptions the call options
+     */
+    public void setCallOptions(final CallOptions callOptions) {
+        this.callOptions = callOptions;
+    }
+
+    /**
+     * Gets requests.
+     *
+     * @return the requests
+     */
+    public List<DynamicMessage> getRequests() {
+        return requests;
+    }
+
+    /**
+     * Sets requests.
+     *
+     * @param requests the requests
+     */
+    public void setRequests(final List<DynamicMessage> requests) {
+        this.requests = requests;
+    }
+
+    /**
+     * Gets method descriptor.
+     *
+     * @return the method descriptor
+     */
+    public MethodDescriptor<DynamicMessage, DynamicMessage> getMethodDescriptor() {
+        return methodDescriptor;
+    }
+
+    /**
+     * Sets method descriptor.
+     *
+     * @param methodDescriptor the method descriptor
+     */
+    public void setMethodDescriptor(final MethodDescriptor<DynamicMessage, DynamicMessage> methodDescriptor) {
+        this.methodDescriptor = methodDescriptor;
+    }
+
+    /**
+     * Gets response observer.
+     *
+     * @return the response observer
+     */
+    public StreamObserver<DynamicMessage> getResponseObserver() {
+        return responseObserver;
+    }
+
+    /**
+     * Sets response observer.
+     *
+     * @param responseObserver the response observer
+     */
+    public void setResponseObserver(final StreamObserver<DynamicMessage> responseObserver) {
+        this.responseObserver = responseObserver;
+    }
 }

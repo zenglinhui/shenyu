@@ -17,15 +17,15 @@
 
 package org.apache.shenyu.admin.listener.http;
 
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.collect.Lists;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.shenyu.admin.config.properties.HttpSyncProperties;
-import org.apache.shenyu.admin.utils.ShenyuResultMessage;
 import org.apache.shenyu.admin.listener.AbstractDataChangedListener;
 import org.apache.shenyu.admin.listener.ConfigDataCache;
 import org.apache.shenyu.admin.model.result.ShenyuAdminResult;
+import org.apache.shenyu.admin.utils.ShenyuResultMessage;
 import org.apache.shenyu.common.concurrent.ShenyuThreadFactory;
 import org.apache.shenyu.common.constant.HttpConstants;
 import org.apache.shenyu.common.dto.AppAuthData;
@@ -37,6 +37,8 @@ import org.apache.shenyu.common.enums.ConfigGroupEnum;
 import org.apache.shenyu.common.enums.DataEventTypeEnum;
 import org.apache.shenyu.common.exception.ShenyuException;
 import org.apache.shenyu.common.utils.GsonUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 
 import javax.servlet.AsyncContext;
@@ -44,6 +46,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -63,9 +66,10 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @since 2.0.0
  */
-@Slf4j
 @SuppressWarnings("all")
 public class HttpLongPollingDataChangedListener extends AbstractDataChangedListener {
+
+    private static final Logger LOG = LoggerFactory.getLogger(HttpLongPollingDataChangedListener.class);
 
     private static final String X_REAL_IP = "X-Real-IP";
 
@@ -100,15 +104,15 @@ public class HttpLongPollingDataChangedListener extends AbstractDataChangedListe
         long syncInterval = httpSyncProperties.getRefreshInterval().toMillis();
         // Periodically check the data for changes and update the cache
         scheduler.scheduleWithFixedDelay(() -> {
-            log.info("http sync strategy refresh config start.");
+            LOG.info("http sync strategy refresh config start.");
             try {
                 this.refreshLocalCache();
-                log.info("http sync strategy refresh config success.");
+                LOG.info("http sync strategy refresh config success.");
             } catch (Exception e) {
-                log.error("http sync strategy refresh config error!", e);
+                LOG.error("http sync strategy refresh config error!", e);
             }
         }, syncInterval, syncInterval, TimeUnit.MILLISECONDS);
-        log.info("http sync strategy refresh interval: {}ms", syncInterval);
+        LOG.info("http sync strategy refresh interval: {}ms", syncInterval);
     }
 
     private void refreshLocalCache() {
@@ -133,7 +137,7 @@ public class HttpLongPollingDataChangedListener extends AbstractDataChangedListe
         // response immediately.
         if (CollectionUtils.isNotEmpty(changedGroup)) {
             this.generateResponse(response, changedGroup);
-            log.info("send response with the changed group, ip={}, group={}", clientIp, changedGroup);
+            LOG.info("send response with the changed group, ip={}, group={}", clientIp, changedGroup);
             return;
         }
         // listen for configuration changed.
@@ -250,7 +254,7 @@ public class HttpLongPollingDataChangedListener extends AbstractDataChangedListe
             response.setStatus(HttpServletResponse.SC_OK);
             response.getWriter().println(GsonUtils.getInstance().toJson(ShenyuAdminResult.success(ShenyuResultMessage.SUCCESS, changedGroups)));
         } catch (IOException ex) {
-            log.error("Sending response failed.", ex);
+            LOG.error("Sending response failed.", ex);
         }
     }
 
@@ -295,11 +299,22 @@ public class HttpLongPollingDataChangedListener extends AbstractDataChangedListe
 
         @Override
         public void run() {
+            if (clients.size() > httpSyncProperties.getNotifyBatchSize()) {
+                List<LongPollingClient> targetClients = new ArrayList<>(clients.size());
+                clients.drainTo(targetClients);
+                List<List<LongPollingClient>> partitionClients = Lists.partition(targetClients, httpSyncProperties.getNotifyBatchSize());
+                partitionClients.forEach(item -> scheduler.execute(() -> doRun(item)));
+            } else {
+                doRun(clients);
+            }
+        }
+
+        private void doRun(final Collection<LongPollingClient> clients) {
             for (Iterator<LongPollingClient> iter = clients.iterator(); iter.hasNext();) {
                 LongPollingClient client = iter.next();
                 iter.remove();
                 client.sendResponse(Collections.singletonList(groupKey));
-                log.info("send response with the changed group,ip={}, group={}, changeTime={}", client.ip, groupKey, changeTime);
+                LOG.info("send response with the changed group,ip={}, group={}, changeTime={}", client.ip, groupKey, changeTime);
             }
         }
     }
@@ -310,6 +325,8 @@ public class HttpLongPollingDataChangedListener extends AbstractDataChangedListe
      * cancellations the timed task and responds to the changed group data.
      */
     class LongPollingClient implements Runnable {
+
+        private final Logger log = LoggerFactory.getLogger(LongPollingClient.class);
 
         /**
          * The Async context.
@@ -346,12 +363,16 @@ public class HttpLongPollingDataChangedListener extends AbstractDataChangedListe
 
         @Override
         public void run() {
-            this.asyncTimeoutFuture = scheduler.schedule(() -> {
-                clients.remove(LongPollingClient.this);
-                List<ConfigGroupEnum> changedGroups = compareChangedGroup((HttpServletRequest) asyncContext.getRequest());
-                sendResponse(changedGroups);
-            }, timeoutTime, TimeUnit.MILLISECONDS);
-            clients.add(this);
+            try {
+                this.asyncTimeoutFuture = scheduler.schedule(() -> {
+                    clients.remove(LongPollingClient.this);
+                    List<ConfigGroupEnum> changedGroups = compareChangedGroup((HttpServletRequest) asyncContext.getRequest());
+                    sendResponse(changedGroups);
+                }, timeoutTime, TimeUnit.MILLISECONDS);
+                clients.add(this);
+            } catch (Exception ex) {
+                log.error("add long polling client error", ex);
+            }
         }
 
         /**

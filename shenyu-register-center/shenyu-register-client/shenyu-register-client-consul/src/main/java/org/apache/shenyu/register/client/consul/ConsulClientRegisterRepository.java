@@ -18,21 +18,26 @@
 package org.apache.shenyu.register.client.consul;
 
 import com.ecwid.consul.v1.kv.KeyValueClient;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.shenyu.common.enums.RpcTypeEnum;
 import org.apache.shenyu.common.utils.GsonUtils;
+import org.apache.shenyu.common.utils.LogUtils;
 import org.apache.shenyu.register.client.api.ShenyuClientRegisterRepository;
 import org.apache.shenyu.register.common.dto.MetaDataRegisterDTO;
 import org.apache.shenyu.register.common.dto.URIRegisterDTO;
 import org.apache.shenyu.register.common.path.RegisterPathConstants;
 import org.apache.shenyu.spi.Join;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.consul.serviceregistry.ConsulRegistration;
 
+import java.util.Optional;
+
 @Join
-@Slf4j
 public class ConsulClientRegisterRepository implements ShenyuClientRegisterRepository {
-    
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsulClientRegisterRepository.class);
+
     @Autowired
     private ConsulRegistration consulRegistration;
     
@@ -44,10 +49,11 @@ public class ConsulClientRegisterRepository implements ShenyuClientRegisterRepos
         String rpcType = metadata.getRpcType();
         String contextPath = metadata.getContextPath().substring(1);
         registerMetadata(rpcType, contextPath, metadata);
-        if (RpcTypeEnum.HTTP.getName().equals(rpcType) || RpcTypeEnum.TARS.getName().equals(rpcType) || RpcTypeEnum.GRPC.getName().equals(rpcType)) {
-            registerURI(metadata);
-        }
-        log.info("{} Consul client register success: {}", rpcType, metadata.toString());
+        Optional.of(RpcTypeEnum.acquireSupportURIs().stream().filter(rpcTypeEnum -> rpcType.equals(rpcTypeEnum.getName())).findFirst())
+                .ifPresent(rpcTypeEnum -> {
+                    registerURI(metadata);
+                });
+        LogUtils.info(LOGGER, "{} Consul client register success: {}", rpcType, metadata);
     }
     
     private void registerMetadata(final String rpcType, final String contextPath, final MetaDataRegisterDTO metadata) {
@@ -70,13 +76,8 @@ public class ConsulClientRegisterRepository implements ShenyuClientRegisterRepos
         if (RpcTypeEnum.HTTP.getName().equals(rpcType) || RpcTypeEnum.SPRING_CLOUD.getName().equals(rpcType)) {
             nodeName = String.join("-", metadata.getContextPath(), metadata.getRuleName().replace("/", "-"));
         } else {
-            nodeName = buildNodeName(metadata.getServiceName(), metadata.getMethodName());
+            nodeName = RegisterPathConstants.buildNodeName(metadata.getServiceName(), metadata.getMethodName());
         }
-        return nodeName.substring(1);
+        return nodeName.startsWith("/") ? nodeName.substring(1) : nodeName;
     }
-    
-    private String buildNodeName(final String serviceName, final String methodName) {
-        return String.join(DOT_SEPARATOR, serviceName, methodName);
-    }
-    
 }

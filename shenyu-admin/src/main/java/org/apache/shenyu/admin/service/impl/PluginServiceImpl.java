@@ -18,19 +18,19 @@
 package org.apache.shenyu.admin.service.impl;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.shenyu.admin.aspect.annotation.Pageable;
+import org.apache.shenyu.admin.listener.DataChangedEvent;
 import org.apache.shenyu.admin.mapper.PluginMapper;
 import org.apache.shenyu.admin.mapper.RuleConditionMapper;
 import org.apache.shenyu.admin.mapper.RuleMapper;
 import org.apache.shenyu.admin.mapper.SelectorConditionMapper;
 import org.apache.shenyu.admin.mapper.SelectorMapper;
-import org.apache.shenyu.admin.service.ResourceService;
 import org.apache.shenyu.admin.model.dto.PluginDTO;
 import org.apache.shenyu.admin.model.dto.ResourceDTO;
 import org.apache.shenyu.admin.model.entity.PluginDO;
 import org.apache.shenyu.admin.model.entity.ResourceDO;
 import org.apache.shenyu.admin.model.entity.RuleDO;
 import org.apache.shenyu.admin.model.entity.SelectorDO;
-import org.apache.shenyu.admin.listener.DataChangedEvent;
 import org.apache.shenyu.admin.model.page.CommonPager;
 import org.apache.shenyu.admin.model.page.PageResultUtils;
 import org.apache.shenyu.admin.model.query.PluginQuery;
@@ -38,18 +38,17 @@ import org.apache.shenyu.admin.model.query.RuleConditionQuery;
 import org.apache.shenyu.admin.model.query.RuleQuery;
 import org.apache.shenyu.admin.model.query.SelectorConditionQuery;
 import org.apache.shenyu.admin.model.query.SelectorQuery;
-import org.apache.shenyu.admin.service.PluginService;
-import org.apache.shenyu.admin.transfer.PluginTransfer;
 import org.apache.shenyu.admin.model.vo.PluginVO;
 import org.apache.shenyu.admin.model.vo.ResourceVO;
+import org.apache.shenyu.admin.service.PluginService;
+import org.apache.shenyu.admin.service.ResourceService;
+import org.apache.shenyu.admin.transfer.PluginTransfer;
 import org.apache.shenyu.common.constant.AdminConstants;
 import org.apache.shenyu.common.dto.PluginData;
 import org.apache.shenyu.common.enums.AdminPluginOperateEnum;
 import org.apache.shenyu.common.enums.AdminResourceEnum;
 import org.apache.shenyu.common.enums.ConfigGroupEnum;
 import org.apache.shenyu.common.enums.DataEventTypeEnum;
-import org.apache.shenyu.common.enums.PluginRoleEnum;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,9 +61,9 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * PluginServiceImpl.
+ * Implementation of the {@link org.apache.shenyu.admin.service.PluginService}.
  */
-@Service("pluginService")
+@Service
 public class PluginServiceImpl implements PluginService {
 
     private final PluginMapper pluginMapper;
@@ -81,7 +80,6 @@ public class PluginServiceImpl implements PluginService {
 
     private final ResourceService resourceService;
 
-    @Autowired(required = false)
     public PluginServiceImpl(final PluginMapper pluginMapper,
                              final SelectorMapper selectorMapper,
                              final SelectorConditionMapper selectorConditionMapper,
@@ -140,10 +138,6 @@ public class PluginServiceImpl implements PluginService {
             PluginDO pluginDO = pluginMapper.selectById(id);
             if (Objects.isNull(pluginDO)) {
                 return AdminConstants.SYS_PLUGIN_ID_NOT_EXIST;
-            }
-            // if sys plugin not delete
-            if (pluginDO.getRole().equals(PluginRoleEnum.SYS.getCode())) {
-                return AdminConstants.SYS_PLUGIN_NOT_DELETE;
             }
             pluginMapper.delete(id);
             deletePluginDataFromResourceAndPermission(pluginDO.getName());
@@ -207,9 +201,9 @@ public class PluginServiceImpl implements PluginService {
      * @return {@linkplain CommonPager}
      */
     @Override
+    @Pageable
     public CommonPager<PluginVO> listByPage(final PluginQuery pluginQuery) {
         return PageResultUtils.result(pluginQuery.getPageParameter(),
-            () -> pluginMapper.countByQuery(pluginQuery),
             () -> pluginMapper.selectByQuery(pluginQuery).stream().map(PluginVO::buildPluginVO).collect(Collectors.toList()));
     }
 
@@ -223,6 +217,13 @@ public class PluginServiceImpl implements PluginService {
         return pluginMapper.selectAll().stream()
                 .map(PluginTransfer.INSTANCE::mapToData)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public String selectIdByName(final String name) {
+        PluginDO pluginDO = pluginMapper.selectByName(name);
+        Objects.requireNonNull(pluginDO);
+        return pluginDO.getId();
     }
 
     /**

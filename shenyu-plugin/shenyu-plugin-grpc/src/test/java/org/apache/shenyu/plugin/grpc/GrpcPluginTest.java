@@ -17,7 +17,6 @@
 
 package org.apache.shenyu.plugin.grpc;
 
-import lombok.SneakyThrows;
 import org.apache.shenyu.common.constant.Constants;
 import org.apache.shenyu.common.dto.MetaData;
 import org.apache.shenyu.common.dto.RuleData;
@@ -70,15 +69,14 @@ public class GrpcPluginTest {
     @Before
     public void setUp() {
         ConfigurableApplicationContext context = mock(ConfigurableApplicationContext.class);
-        SpringBeanUtils.getInstance().setCfgContext(context);
+        SpringBeanUtils.getInstance().setApplicationContext(context);
         when(context.getBean(ShenyuResult.class)).thenReturn(new DefaultShenyuResult());
 
         when(selector.getName()).thenReturn("/grpc");
     }
 
     @Test
-    @SneakyThrows
-    public void testDoExecute() {
+    public void testDoExecute() throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
         ServerWebExchange exchange = getServerWebExchange();
         exchange.getAttributes().put(Constants.PARAM_TRANSFORM, "{message:1}");
         exchange.getAttributes().put(Constants.META_DATA, getMetaData());
@@ -89,8 +87,8 @@ public class GrpcPluginTest {
         Map<String, ShenyuGrpcClient> clientCacheMap = (Map<String, ShenyuGrpcClient>) clientCacheField.get(grpcClientCacheClass);
         ShenyuGrpcClient mockClient = mock(ShenyuGrpcClient.class);
         ShenyuGrpcResponse response = new ShenyuGrpcResponse();
-        response.setResult("success");
-        when(mockClient.call(Mockito.any(), Mockito.any(), Mockito.any()))
+        response.getResults().add("success");
+        when(mockClient.call(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenReturn(CompletableFuture.completedFuture(response));
         clientCacheMap.put("/grpc", mockClient);
 
@@ -100,7 +98,6 @@ public class GrpcPluginTest {
     }
 
     @Test
-    @SneakyThrows
     public void testDoExecuteMetaDataError() {
         ServerWebExchange exchange = getServerWebExchange();
         exchange.getAttributes().put(Constants.META_DATA, getMetaData());
@@ -109,7 +106,6 @@ public class GrpcPluginTest {
     }
 
     @Test
-    @SneakyThrows
     public void testDoExecuteParaIsBlankError() {
         ServerWebExchange exchange = getServerWebExchange();
         exchange.getAttributes().put(Constants.META_DATA, new MetaData());
@@ -131,7 +127,7 @@ public class GrpcPluginTest {
 
     @Test
     public void testSkip() {
-        final Boolean result = grpcPlugin.skip(getServerWebExchange());
+        final boolean result = grpcPlugin.skip(getServerWebExchange());
         assertFalse(result);
     }
 

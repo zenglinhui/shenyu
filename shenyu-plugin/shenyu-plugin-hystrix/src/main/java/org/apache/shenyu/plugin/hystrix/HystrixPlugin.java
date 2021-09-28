@@ -17,12 +17,11 @@
 
 package org.apache.shenyu.plugin.hystrix;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.shenyu.common.constant.Constants;
 import org.apache.shenyu.common.dto.RuleData;
 import org.apache.shenyu.common.dto.SelectorData;
-import org.apache.shenyu.common.dto.convert.HystrixHandle;
+import org.apache.shenyu.common.dto.convert.rule.HystrixHandle;
 import org.apache.shenyu.common.enums.HystrixIsolationModeEnum;
 import org.apache.shenyu.common.enums.PluginEnum;
 import org.apache.shenyu.common.enums.ResultEnum;
@@ -31,10 +30,12 @@ import org.apache.shenyu.plugin.api.context.ShenyuContext;
 import org.apache.shenyu.plugin.base.AbstractShenyuPlugin;
 import org.apache.shenyu.plugin.base.utils.CacheKeyUtils;
 import org.apache.shenyu.plugin.hystrix.builder.HystrixBuilder;
-import org.apache.shenyu.plugin.hystrix.cache.HystrixRuleHandleCache;
 import org.apache.shenyu.plugin.hystrix.command.Command;
 import org.apache.shenyu.plugin.hystrix.command.HystrixCommand;
 import org.apache.shenyu.plugin.hystrix.command.HystrixCommandOnThread;
+import org.apache.shenyu.plugin.hystrix.handler.HystrixPluginDataHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import rx.Subscription;
@@ -44,15 +45,15 @@ import java.util.Objects;
 /**
  * Hystrix Plugin.
  */
-@Slf4j
 public class HystrixPlugin extends AbstractShenyuPlugin {
+
+    private static final Logger LOG = LoggerFactory.getLogger(HystrixPlugin.class);
 
     @Override
     protected Mono<Void> doExecute(final ServerWebExchange exchange, final ShenyuPluginChain chain, final SelectorData selector, final RuleData rule) {
         final ShenyuContext shenyuContext = exchange.getAttribute(Constants.CONTEXT);
         assert shenyuContext != null;
-        final HystrixHandle hystrixHandle = HystrixRuleHandleCache.getInstance()
-                .obtainHandle(CacheKeyUtils.INST.getKey(rule));
+        final HystrixHandle hystrixHandle = HystrixPluginDataHandler.CACHED_HANDLE.get().obtainHandle(CacheKeyUtils.INST.getKey(rule));
         if (StringUtils.isBlank(hystrixHandle.getGroupKey())) {
             hystrixHandle.setGroupKey(Objects.requireNonNull(shenyuContext).getModule());
         }
@@ -65,10 +66,10 @@ public class HystrixPlugin extends AbstractShenyuPlugin {
                     s::error, s::success);
             s.onCancel(sub::unsubscribe);
             if (command.isCircuitBreakerOpen()) {
-                log.error("hystrix execute have circuitBreaker is Open! groupKey:{},commandKey:{}", hystrixHandle.getGroupKey(), hystrixHandle.getCommandKey());
+                LOG.error("hystrix execute have circuitBreaker is Open! groupKey:{},commandKey:{}", hystrixHandle.getGroupKey(), hystrixHandle.getCommandKey());
             }
         }).doOnError(throwable -> {
-            log.error("hystrix execute exception:", throwable);
+            LOG.error("hystrix execute exception:", throwable);
             exchange.getAttributes().put(Constants.CLIENT_RESPONSE_RESULT_TYPE, ResultEnum.ERROR.getName());
             chain.execute(exchange);
         }).then();

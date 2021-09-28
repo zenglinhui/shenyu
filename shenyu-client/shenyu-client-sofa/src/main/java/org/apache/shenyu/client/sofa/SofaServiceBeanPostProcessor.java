@@ -19,9 +19,7 @@ package org.apache.shenyu.client.sofa;
 
 import com.alipay.sofa.runtime.service.component.Service;
 import com.alipay.sofa.runtime.spring.factory.ServiceFactoryBean;
-
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.shenyu.client.core.disruptor.ShenyuClientRegisterEventPublisher;
 import org.apache.shenyu.client.sofa.common.annotation.ShenyuSofaClient;
@@ -31,28 +29,31 @@ import org.apache.shenyu.common.utils.IpUtils;
 import org.apache.shenyu.register.client.api.ShenyuClientRegisterRepository;
 import org.apache.shenyu.register.common.config.ShenyuRegisterCenterConfig;
 import org.apache.shenyu.register.common.dto.MetaDataRegisterDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
  * The Sofa ServiceBean PostProcessor.
  */
-@Slf4j
 public class SofaServiceBeanPostProcessor implements BeanPostProcessor {
 
-    private ShenyuClientRegisterEventPublisher publisher = ShenyuClientRegisterEventPublisher.getInstance();
+    private static final Logger LOG = LoggerFactory.getLogger(SofaServiceBeanPostProcessor.class);
+
+    private final ShenyuClientRegisterEventPublisher publisher = ShenyuClientRegisterEventPublisher.getInstance();
 
     private final ExecutorService executorService;
 
@@ -75,7 +76,7 @@ public class SofaServiceBeanPostProcessor implements BeanPostProcessor {
         this.appName = appName;
         this.host = props.getProperty("host");
         this.port = props.getProperty("port");
-        executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        executorService = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("shenyu-sofa-client-thread-pool-%d").build());
         publisher.start(shenyuClientRegisterRepository);
     }
 
@@ -87,7 +88,6 @@ public class SofaServiceBeanPostProcessor implements BeanPostProcessor {
         return bean;
     }
 
-    @SneakyThrows
     private void handler(final ServiceFactoryBean serviceBean) {
         Class<?> clazz;
         Object targetProxy;
@@ -95,7 +95,7 @@ public class SofaServiceBeanPostProcessor implements BeanPostProcessor {
             targetProxy = ((Service) Objects.requireNonNull(serviceBean.getObject())).getTarget();
             clazz = targetProxy.getClass();
         } catch (Exception e) {
-            log.error("failed to get sofa target class", e);
+            LOG.error("failed to get sofa target class", e);
             return;
         }
         if (AopUtils.isAopProxy(targetProxy)) {
@@ -115,14 +115,23 @@ public class SofaServiceBeanPostProcessor implements BeanPostProcessor {
         String path = contextPath + shenyuSofaClient.path();
         String desc = shenyuSofaClient.desc();
         String serviceName = serviceBean.getInterfaceClass().getName();
-        String host = StringUtils.isBlank(this.host) ? IpUtils.getHost() : this.host;
+        String host = IpUtils.isCompleteHost(this.host) ? this.host : IpUtils.getHost(this.host);
         int port = StringUtils.isBlank(this.port) ? -1 : Integer.parseInt(this.port);
         String configRuleName = shenyuSofaClient.ruleName();
         String ruleName = ("".equals(configRuleName)) ? path : configRuleName;
         String methodName = method.getName();
-        Class<?>[] parameterTypesClazz = method.getParameterTypes();
-        String parameterTypes = Arrays.stream(parameterTypesClazz).map(Class::getName)
-                .collect(Collectors.joining(","));
+        String parameterTypes = Arrays.stream(method.getParameters())
+                .map(parameter -> {
+                    StringBuilder result = new StringBuilder(parameter.getType().getName());
+                    final Type type = parameter.getParameterizedType();
+                    if (type instanceof ParameterizedType) {
+                        final Type[] actualTypeArguments = ((ParameterizedType) type).getActualTypeArguments();
+                        for (Type actualTypeArgument : actualTypeArguments) {
+                            result.append("#").append(actualTypeArgument.getTypeName());
+                        }
+                    }
+                    return result.toString();
+                }).collect(Collectors.joining(","));
         return MetaDataRegisterDTO.builder()
                 .appName(appName)
                 .serviceName(serviceName)

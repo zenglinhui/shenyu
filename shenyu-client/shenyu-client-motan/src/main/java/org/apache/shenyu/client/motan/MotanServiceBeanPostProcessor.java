@@ -17,9 +17,9 @@
 
 package org.apache.shenyu.client.motan;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.weibo.api.motan.config.springsupport.BasicServiceConfigBean;
 import com.weibo.api.motan.config.springsupport.annotation.MotanService;
-import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.shenyu.client.core.disruptor.ShenyuClientRegisterEventPublisher;
@@ -45,9 +45,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -84,7 +82,7 @@ public class MotanServiceBeanPostProcessor implements BeanPostProcessor, Applica
         this.appName = appName;
         this.host = props.getProperty("host");
         this.port = props.getProperty("port");
-        executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        executorService = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("shenyu-motan-client-thread-pool-%d").build());
         publisher.start(shenyuClientRegisterRepository);
     }
 
@@ -101,7 +99,6 @@ public class MotanServiceBeanPostProcessor implements BeanPostProcessor, Applica
         return bean;
     }
 
-    @SneakyThrows
     private void handler(final Object bean) {
         if (group == null) {
             group = ((BasicServiceConfigBean) applicationContext.getBean("baseServiceConfig")).getGroup();
@@ -126,8 +123,7 @@ public class MotanServiceBeanPostProcessor implements BeanPostProcessor, Applica
         String appName = this.appName;
         String path = this.contextPath + shenyuMotanClient.path();
         String desc = shenyuMotanClient.desc();
-        String configHost = this.host;
-        String host = StringUtils.isBlank(configHost) ? IpUtils.getHost() : configHost;
+        String host = IpUtils.isCompleteHost(this.host) ? this.host : IpUtils.getHost(this.host);
         int port = StringUtils.isBlank(this.port) ? -1 : Integer.parseInt(this.port);
         String configRuleName = shenyuMotanClient.ruleName();
         String ruleName = ("".equals(configRuleName)) ? path : configRuleName;
@@ -172,9 +168,7 @@ public class MotanServiceBeanPostProcessor implements BeanPostProcessor, Applica
                 params.add(Pair.of(paramTypes[i].getName(), paramNames[i]));
             }
         }
-        return MotanRpcExt.RpcExt.builder().methodName(method.getName())
-                .params(params)
-                .build();
+        return new MotanRpcExt.RpcExt(method.getName(), params);
     }
 
     private String buildRpcExt(final Method[] methods) {
@@ -185,10 +179,7 @@ public class MotanServiceBeanPostProcessor implements BeanPostProcessor, Applica
                 list.add(buildRpcExt(method));
             }
         }
-        MotanRpcExt buildList = MotanRpcExt.builder()
-                .methodInfo(list)
-                .group(group)
-                .build();
+        MotanRpcExt buildList = new MotanRpcExt(list, group);
         return GsonUtils.getInstance().toJson(buildList);
     }
 

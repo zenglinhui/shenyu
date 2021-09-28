@@ -17,9 +17,8 @@
 
 package org.apache.shenyu.admin.config;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.shenyu.admin.disruptor.RegisterServerDisruptorPublisher;
-import org.apache.shenyu.admin.service.ShenyuClientRegisterService;
+import org.apache.shenyu.admin.service.register.ShenyuClientRegisterServiceFactory;
 import org.apache.shenyu.register.common.config.ShenyuRegisterCenterConfig;
 import org.apache.shenyu.register.server.api.ShenyuServerRegisterRepository;
 import org.apache.shenyu.spi.ExtensionLoader;
@@ -27,13 +26,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Map;
+
 /**
  * The type Register center configuration.
  */
-@Slf4j
 @Configuration
 public class RegisterCenterConfiguration {
-    
+
     /**
      * Shenyu register center config shenyu register center config.
      *
@@ -54,7 +54,7 @@ public class RegisterCenterConfiguration {
      */
     @Bean
     public ShenyuServerRegisterRepository shenyuServerRegisterRepository(final ShenyuRegisterCenterConfig shenyuRegisterCenterConfig,
-                                                                         final ShenyuClientRegisterService shenyuClientRegisterService) {
+                                                                         final Map<String, ShenyuClientRegisterServiceFactory> shenyuClientRegisterService) {
         String registerType = shenyuRegisterCenterConfig.getRegisterType();
         ShenyuServerRegisterRepository registerRepository = ExtensionLoader.getExtensionLoader(ShenyuServerRegisterRepository.class).getJoin(registerType);
         RegisterServerDisruptorPublisher publisher = RegisterServerDisruptorPublisher.getInstance();

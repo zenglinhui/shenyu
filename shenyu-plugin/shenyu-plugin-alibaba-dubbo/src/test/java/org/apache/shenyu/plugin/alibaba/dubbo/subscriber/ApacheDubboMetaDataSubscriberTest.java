@@ -19,7 +19,6 @@ package org.apache.shenyu.plugin.alibaba.dubbo.subscriber;
 
 import com.alibaba.dubbo.config.ReferenceConfig;
 import com.google.common.cache.LoadingCache;
-import lombok.SneakyThrows;
 import org.apache.shenyu.common.dto.MetaData;
 import org.apache.shenyu.common.enums.RpcTypeEnum;
 import org.apache.shenyu.plugin.alibaba.dubbo.cache.ApplicationConfigCache;
@@ -32,6 +31,8 @@ import java.lang.reflect.Field;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doNothing;
+
 
 /**
  * The Test Case For AlibabaDubboMetaDataSubscriber.
@@ -57,9 +58,8 @@ public final class ApacheDubboMetaDataSubscriberTest {
         metaData.setParameterTypes("parameterTypes");
     }
 
-    @SneakyThrows
     @Test
-    public void testOnSubscribe() {
+    public void testOnSubscribe() throws NoSuchFieldException, IllegalAccessException {
         ReferenceConfig referenceConfig = mock(ReferenceConfig.class);
         when(referenceConfig.getInterface()).thenReturn("/dubbo/findAll");
         ApplicationConfigCache applicationConfigCache = ApplicationConfigCache.getInstance();
@@ -76,7 +76,9 @@ public final class ApacheDubboMetaDataSubscriberTest {
                 .rpcType(RpcTypeEnum.DUBBO.getName())
                 .rpcExt("{\"group\":\"Group\",\"version\":\"2.6.5\",\"loadbalance\":\"roundrobin\",\"url\":\"http://192.168.55.113/dubbo\"}")
                 .parameterTypes("parameterTypes").build();
-        alibabaDubboMetaDataSubscriber.onSubscribe(metaData);
+        AlibabaDubboMetaDataSubscriber alibabaDubboMetaDataSubscriberMock = mock(AlibabaDubboMetaDataSubscriber.class);
+        doNothing().when(alibabaDubboMetaDataSubscriberMock).onSubscribe(metaData);
+        alibabaDubboMetaDataSubscriberMock.onSubscribe(metaData);
         alibabaDubboMetaDataSubscriber.unSubscribe(metaData);
     }
 }

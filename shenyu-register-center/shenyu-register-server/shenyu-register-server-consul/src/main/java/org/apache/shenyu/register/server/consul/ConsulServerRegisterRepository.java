@@ -21,7 +21,6 @@ import com.ecwid.consul.v1.kv.model.GetValue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.shenyu.common.utils.GsonUtils;
 import org.apache.shenyu.register.common.config.ShenyuRegisterCenterConfig;
 import org.apache.shenyu.register.common.dto.MetaDataRegisterDTO;
@@ -29,6 +28,8 @@ import org.apache.shenyu.register.common.dto.URIRegisterDTO;
 import org.apache.shenyu.register.server.api.ShenyuServerRegisterPublisher;
 import org.apache.shenyu.register.server.api.ShenyuServerRegisterRepository;
 import org.apache.shenyu.spi.Join;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.event.HeartbeatEvent;
@@ -41,25 +42,26 @@ import java.util.List;
 import java.util.Map;
 
 @Join
-@Slf4j
 public class ConsulServerRegisterRepository implements ShenyuServerRegisterRepository {
-    
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsulServerRegisterRepository.class);
+
     @Autowired
     private ConsulDiscoveryClient discoveryClient;
-    
+
     private long index;
-    
+
     private Map<String, List<URIRegisterDTO>> uriRegisterDTOMap = new HashMap<>();
-    
+
     private ShenyuServerRegisterPublisher publisher;
-    
+
     private final Map<String, Long> indexMap = new HashMap<>();
-    
+
     @Override
     public void init(final ShenyuServerRegisterPublisher publisher, final ShenyuRegisterCenterConfig config) {
         this.publisher = publisher;
     }
-    
+
     /**
      * Listen service instance change.
      *
@@ -78,7 +80,7 @@ public class ConsulServerRegisterRepository implements ShenyuServerRegisterRepos
             uriRegisterDTOMap = uriMap;
         }
     }
-    
+
     /**
      * Listen metadata change.
      *
@@ -94,11 +96,11 @@ public class ConsulServerRegisterRepository implements ShenyuServerRegisterRepos
             }
         });
     }
-    
+
     private void publishMetadata(final String data) {
         publisher.publish(Lists.newArrayList(GsonUtils.getInstance().fromJson(data, MetaDataRegisterDTO.class)));
     }
-    
+
     private void publishRegisterURI(final String contextPath, final List<URIRegisterDTO> registerDTOList) {
         if (registerDTOList.isEmpty()) {
             URIRegisterDTO uriRegisterDTO = URIRegisterDTO.builder().contextPath(contextPath).build();
@@ -106,7 +108,7 @@ public class ConsulServerRegisterRepository implements ShenyuServerRegisterRepos
         }
         publisher.publish(registerDTOList);
     }
-    
+
     private Map<String, List<URIRegisterDTO>> fetchInstancesMap() {
         Map<String, List<URIRegisterDTO>> map = new HashMap<>();
         List<ServiceInstance> instances = discoveryClient.getAllInstances();
@@ -118,12 +120,12 @@ public class ConsulServerRegisterRepository implements ShenyuServerRegisterRepos
                 map.putIfAbsent(contextPath, new ArrayList<>());
                 map.get(contextPath).add(uriRegisterDTO);
             } else {
-                log.debug("maybe not shenyu client, ignore service instance: {}", serviceInstance.toString());
+                LOGGER.debug("maybe not shenyu client, ignore service instance: {}", serviceInstance);
             }
         });
         return map;
     }
-    
+
     private boolean metadataChanged(final String path, final long index) {
         boolean result = !indexMap.containsKey(path) || indexMap.get(path) < index;
         if (result) {
@@ -131,5 +133,5 @@ public class ConsulServerRegisterRepository implements ShenyuServerRegisterRepos
         }
         return result;
     }
-    
+
 }

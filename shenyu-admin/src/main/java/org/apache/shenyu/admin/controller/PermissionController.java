@@ -17,10 +17,10 @@
 
 package org.apache.shenyu.admin.controller;
 
-import org.apache.shenyu.admin.service.PermissionService;
-import org.apache.shenyu.admin.utils.ShenyuResultMessage;
 import org.apache.shenyu.admin.model.result.ShenyuAdminResult;
 import org.apache.shenyu.admin.model.vo.PermissionMenuVO;
+import org.apache.shenyu.admin.service.PermissionService;
+import org.apache.shenyu.admin.utils.ShenyuResultMessage;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -48,8 +48,10 @@ public class PermissionController {
      * @return {@linkplain ShenyuAdminResult}
      */
     @GetMapping("/getUserPermissionByToken")
-    public ShenyuAdminResult getUserPermissionByToken(@RequestParam(name = "token", required = true) final String token) {
+    public ShenyuAdminResult getUserPermissionByToken(@RequestParam(name = "token") final String token) {
         PermissionMenuVO permissionMenuVO = permissionService.getPermissionMenu(token);
-        return Optional.ofNullable(permissionMenuVO).map(item -> ShenyuAdminResult.success(ShenyuResultMessage.MENU_SUCCESS, item)).orElse(ShenyuAdminResult.error(ShenyuResultMessage.MENU_FAILED));
+        return Optional.ofNullable(permissionMenuVO)
+                .map(item -> ShenyuAdminResult.success(ShenyuResultMessage.MENU_SUCCESS, item))
+                .orElseGet(() -> ShenyuAdminResult.error(ShenyuResultMessage.MENU_FAILED));
     }
 }
