@@ -134,6 +134,9 @@ public final class ApplicationConfigCache {
      * @return the reference config
      */
     public ConsumerConfig<GenericService> build(final MetaData metaData) {
+        if (Objects.isNull(applicationConfig) || Objects.isNull(registryConfig)) {
+            return new ConsumerConfig<>();
+        }
         ConsumerConfig<GenericService> reference = new ConsumerConfig<>();
         reference.setGeneric(true);
         reference.setApplication(applicationConfig);
@@ -152,10 +155,14 @@ public final class ApplicationConfigCache {
             Optional.ofNullable(sofaParamExtInfo.getTimeout()).ifPresent(reference::setTimeout);
             Optional.ofNullable(sofaParamExtInfo.getRetries()).ifPresent(reference::setRetries);
         }
-        Object obj = reference.refer();
-        if (obj != null) {
-            LOG.info("init sofa reference success there meteData is :{}", metaData);
-            cache.put(metaData.getPath(), reference);
+        try {
+            Object obj = reference.refer();
+            if (obj != null) {
+                LOG.info("init sofa reference success there meteData is :{}", metaData);
+                cache.put(metaData.getPath(), reference);
+            }
+        } catch (Exception e) {
+            LOG.error("init sofa reference exception", e);
         }
         return reference;
     }
